@@ -43,6 +43,12 @@ def process_disclosures(disclosures: list[Disclosure]) -> dict[str, int]:
                     if rule.telegram_topic_id and rule.telegram_topic_id.strip()
                     else None
                 )
+                if rule.telegram_chat_id.strip().startswith("-100") and topic_id is None:
+                    repository.log_event(
+                        "WARNING",
+                        "telegram",
+                        f"Topic ID yok, Genel konuya gidebilir: {disclosure.disclosure_index}",
+                    )
                 telegram_bot.send_disclosure(
                     settings.telegram_bot_token,
                     rule.telegram_chat_id,

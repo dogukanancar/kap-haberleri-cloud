@@ -483,6 +483,11 @@ def page_settings(settings: Settings) -> None:
     if st.button("Test mesaji gonder"):
         if not settings.telegram_bot_token or not test_chat:
             st.error("TELEGRAM_BOT_TOKEN ve chat ID gerekli.")
+        elif _group_chat_id(test_chat) and not test_topic.strip():
+            st.error(
+                "Grup chat ID kullaniyorsunuz; topic ID zorunlu (ornek: 184). "
+                "Aksi halde mesaj Genel konuya duser."
+            )
         else:
             topic_id = int(test_topic.strip()) if test_topic.strip() else None
             telegram_bot.send_message(
