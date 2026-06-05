@@ -227,10 +227,13 @@ def _render_filter_form(
             value=initial.get("telegram_chat_id", settings.default_telegram_chat_id or ""),
             help="Grup icin -100... ile baslar.",
         )
+        topic_default = initial.get("telegram_topic_id", "")
+        if not topic_default and _group_chat_id(telegram_chat_id):
+            topic_default = "184"
         telegram_topic_id = st.text_input(
-            "Telegram topic ID (opsiyonel)",
-            value=initial.get("telegram_topic_id", ""),
-            placeholder="184",
+            "Telegram topic ID (grup icin zorunlu)",
+            value=topic_default,
+            placeholder="Ornek: 184",
             help="Forum grubunda konu ID. t.me/c/.../184 linkindeki son sayi.",
         )
         submitted = st.form_submit_button(submit_label, type="primary")
@@ -238,6 +241,9 @@ def _render_filter_form(
             return False
         if not kural_adi or not telegram_chat_id:
             st.error("Kural adi ve Telegram chat ID zorunlu.")
+            return False
+        if _group_chat_id(telegram_chat_id) and not telegram_topic_id.strip():
+            st.error("Grup chat ID icin topic ID zorunlu (ornek: 184).")
             return False
 
         parsed_companies = _split_company_codes(sirket_kodlari)
@@ -265,10 +271,11 @@ def _render_filter_form(
             return False
 
         action = "guncellendi" if rule_id else "kaydedildi"
+        topic_note = f", topic {telegram_topic_id.strip()}" if telegram_topic_id.strip() else ""
         st.session_state["filter_save_info"] = (
             f"'{kural_adi}' {action}. "
             f"{len(parsed_companies)} sirket, "
-            f"{len(parsed_keywords)} anahtar kelime."
+            f"{len(parsed_keywords)} anahtar kelime{topic_note}."
         )
         return True
 
