@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 
 from src.config import get_settings
@@ -61,6 +62,7 @@ def process_disclosures(disclosures: list[Disclosure]) -> dict[str, int]:
                     f"Bildirim gonderildi: {disclosure.disclosure_index}",
                     detail=disclosure.url,
                 )
+                time.sleep(0.08)
             except Exception as exc:
                 repository.log_event(
                     "ERROR",

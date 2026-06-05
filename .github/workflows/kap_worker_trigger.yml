@@ -1,0 +1,33 @@
+# GitHub schedule bazen ana worker'i tetiklemez; bu hafif workflow
+# her 5 dakikada kap_worker.yml'i workflow_dispatch ile cagirir.
+name: KAP Worker Zamanlayici
+
+on:
+  schedule:
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: kap-worker-trigger
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: KAP Worker'i tetikle
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "kap_worker.yml",
+              ref: "main",
+            });
+            core.info("kap_worker.yml tetiklendi.");

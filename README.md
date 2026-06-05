@@ -43,6 +43,32 @@ git push -u origin main
 
 Actions sekmesinden **KAP Worker** workflow'unu `Run workflow` ile test edin.
 
+### Otomatik worker (5 dakika) — onerilen kurulum
+
+GitHub'in yerlesik `schedule` tetikleyicisi bazi repolarda calismayabilir. **Guvenilir cozum:** [cron-job.org](https://cron-job.org) (ucretsiz) ile workflow'u her 5 dakikada bir tetikleyin.
+
+1. GitHub → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained token**
+2. Repository: `kap-haberleri-cloud`, izin: **Actions: Read and write**
+3. [cron-job.org](https://console.cron-job.org) → Create cronjob:
+   - **URL:** `https://api.github.com/repos/dogukanancar/kap-haberleri-cloud/actions/workflows/kap_worker.yml/dispatches`
+   - **Schedule:** every 5 minutes
+   - **Request method:** POST
+   - **Headers:**
+     - `Accept: application/vnd.github+json`
+     - `Authorization: Bearer GITHUB_TOKEN_BURAYA`
+     - `X-GitHub-Api-Version: 2022-11-28`
+   - **Body (JSON):** `{"ref":"main"}`
+4. Kaydet ve **Test run** ile dogrula; Actions'ta yeni **KAP Worker** calismasi gorunmeli.
+
+Yedek: repoda **KAP Worker Zamanlayici** workflow'u da GitHub schedule ile ana worker'i tetiklemeyi dener.
+
+Yerel test:
+
+```powershell
+$env:GITHUB_TOKEN = "ghp_..."
+.\scripts\trigger_github_worker.ps1
+```
+
 ## 3. Streamlit Cloud
 
 1. [share.streamlit.io](https://share.streamlit.io) → New app
