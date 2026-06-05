@@ -457,14 +457,21 @@ def page_settings(settings: Settings) -> None:
     if "telegram_test_chat" not in st.session_state:
         st.session_state.telegram_test_chat = default_chat
     if "telegram_test_topic" not in st.session_state:
-        st.session_state.telegram_test_topic = default_topic
+        if default_topic:
+            st.session_state.telegram_test_topic = default_topic
+        elif _group_chat_id(default_chat):
+            st.session_state.telegram_test_topic = "184"
+        else:
+            st.session_state.telegram_test_topic = ""
     if st.button("Test alanlarini kurallardan doldur"):
         fill_chat, fill_topic = _test_target_from_rules(
             all_rules,
             fallback_chat=settings.default_telegram_chat_id or "",
         )
         st.session_state.telegram_test_chat = fill_chat
-        st.session_state.telegram_test_topic = fill_topic
+        st.session_state.telegram_test_topic = fill_topic or (
+            "184" if _group_chat_id(fill_chat) else ""
+        )
         st.rerun()
     st.caption(
         "Test, asagidaki alanlara gider. Grup: -1003684878522, topic: 184"
@@ -475,24 +482,26 @@ def page_settings(settings: Settings) -> None:
         help="Grup chat ID (-100 ile baslar). Kisisel ID kullanmayin.",
     )
     test_topic = st.text_input(
-        "Test topic ID (opsiyonel)",
+        "Test topic ID (grup icin zorunlu)",
         key="telegram_test_topic",
-        placeholder="184",
+        placeholder="Ornek: 184",
         help="Forum konusu: t.me/c/.../184 son sayi",
     )
     if st.button("Test mesaji gonder"):
-        if not settings.telegram_bot_token or not test_chat:
+        chat_value = str(st.session_state.get("telegram_test_chat", "")).strip()
+        topic_value = str(st.session_state.get("telegram_test_topic", "")).strip()
+        if not settings.telegram_bot_token or not chat_value:
             st.error("TELEGRAM_BOT_TOKEN ve chat ID gerekli.")
-        elif _group_chat_id(test_chat) and not test_topic.strip():
+        elif _group_chat_id(chat_value) and not topic_value:
             st.error(
                 "Grup chat ID kullaniyorsunuz; topic ID zorunlu (ornek: 184). "
                 "Aksi halde mesaj Genel konuya duser."
             )
         else:
-            topic_id = int(test_topic.strip()) if test_topic.strip() else None
+            topic_id = int(topic_value) if topic_value else None
             telegram_bot.send_message(
                 settings.telegram_bot_token,
-                test_chat,
+                chat_value,
                 "<b>KAP Haberleri Cloud</b>\nTest mesaji basarili.",
                 message_thread_id=topic_id,
             )
