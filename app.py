@@ -18,8 +18,30 @@ from src.kap_fetcher import KapFetchError, fetch_recent_disclosures
 from src import repository
 from src.service import process_disclosures
 from src import telegram_bot
+from src.models import FilterRule
 
 st.set_page_config(page_title="KAP Haberleri Cloud", page_icon="☁️", layout="wide")
+
+
+def _group_chat_id(chat_id: str | None) -> bool:
+    return bool(chat_id and chat_id.strip().startswith("-100"))
+
+
+def _test_target_from_rules(
+    rules: list[FilterRule],
+    *,
+    fallback_chat: str = "",
+) -> tuple[str, str]:
+    active = [r for r in rules if r.aktif]
+    for pool in (active, rules):
+        for rule in pool:
+            if _group_chat_id(rule.telegram_chat_id):
+                return rule.telegram_chat_id, rule.telegram_topic_id or ""
+    if active:
+        return active[0].telegram_chat_id, active[0].telegram_topic_id or ""
+    if rules:
+        return rules[0].telegram_chat_id, rules[0].telegram_topic_id or ""
+    return fallback_chat, ""
 
 
 def _split_company_codes(value: str) -> list[str]:
@@ -428,17 +450,21 @@ def page_settings(settings: Settings) -> None:
             "Aktif filtre kurali yok. Worker mesaj gondermez. "
             "Filtreler sayfasinda kurallari **Aktif** isaretleyin."
         )
-    ref_rule = active_rules[0] if active_rules else (all_rules[0] if all_rules else None)
-    default_chat = ref_rule.telegram_chat_id if ref_rule else (settings.default_telegram_chat_id or "")
-    default_topic = (ref_rule.telegram_topic_id or "") if ref_rule else ""
+    default_chat, default_topic = _test_target_from_rules(
+        all_rules,
+        fallback_chat=settings.default_telegram_chat_id or "",
+    )
     if "telegram_test_chat" not in st.session_state:
         st.session_state.telegram_test_chat = default_chat
     if "telegram_test_topic" not in st.session_state:
         st.session_state.telegram_test_topic = default_topic
-    sync_col1, sync_col2 = st.columns(2)
-    if sync_col1.button("Test alanlarini kurallardan doldur"):
-        st.session_state.telegram_test_chat = default_chat
-        st.session_state.telegram_test_topic = default_topic
+    if st.button("Test alanlarini kurallardan doldur"):
+        fill_chat, fill_topic = _test_target_from_rules(
+            all_rules,
+            fallback_chat=settings.default_telegram_chat_id or "",
+        )
+        st.session_state.telegram_test_chat = fill_chat
+        st.session_state.telegram_test_topic = fill_topic
         st.rerun()
     st.caption(
         "Test, asagidaki alanlara gider. Grup: -1003684878522, topic: 184"
