@@ -421,24 +421,36 @@ def page_settings(settings: Settings) -> None:
         st.success("Ayarlar kaydedildi.")
 
     st.subheader("Telegram test")
-    active_rules = repository.list_filter_rules(active_only=True)
-    default_chat = settings.default_telegram_chat_id or ""
-    default_topic = ""
-    if active_rules:
-        default_chat = active_rules[0].telegram_chat_id or default_chat
-        default_topic = active_rules[0].telegram_topic_id or ""
+    all_rules = repository.list_filter_rules()
+    active_rules = [r for r in all_rules if r.aktif]
+    if not active_rules:
+        st.warning(
+            "Aktif filtre kurali yok. Worker mesaj gondermez. "
+            "Filtreler sayfasinda kurallari **Aktif** isaretleyin."
+        )
+    ref_rule = active_rules[0] if active_rules else (all_rules[0] if all_rules else None)
+    default_chat = ref_rule.telegram_chat_id if ref_rule else (settings.default_telegram_chat_id or "")
+    default_topic = (ref_rule.telegram_topic_id or "") if ref_rule else ""
+    if "telegram_test_chat" not in st.session_state:
+        st.session_state.telegram_test_chat = default_chat
+    if "telegram_test_topic" not in st.session_state:
+        st.session_state.telegram_test_topic = default_topic
+    sync_col1, sync_col2 = st.columns(2)
+    if sync_col1.button("Test alanlarini kurallardan doldur"):
+        st.session_state.telegram_test_chat = default_chat
+        st.session_state.telegram_test_topic = default_topic
+        st.rerun()
     st.caption(
-        "Test, asagidaki alanlara gore gider. "
-        "Filtre kurallarindaki chat/topic ile ayni olmali."
+        "Test, asagidaki alanlara gider. Grup: -1003684878522, topic: 184"
     )
     test_chat = st.text_input(
         "Test chat ID",
-        value=default_chat,
-        help="Ornek grup: -1003684878522",
+        key="telegram_test_chat",
+        help="Grup chat ID (-100 ile baslar). Kisisel ID kullanmayin.",
     )
     test_topic = st.text_input(
         "Test topic ID (opsiyonel)",
-        value=default_topic,
+        key="telegram_test_topic",
         placeholder="184",
         help="Forum konusu: t.me/c/.../184 son sayi",
     )
