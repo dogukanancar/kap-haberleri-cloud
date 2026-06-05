@@ -37,17 +37,21 @@ def send_message(
     chat_id: str,
     text: str,
     *,
+    message_thread_id: int | None = None,
     disable_preview: bool = True,
     timeout: int = 20,
 ) -> None:
+    payload: dict[str, object] = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": disable_preview,
+    }
+    if message_thread_id is not None:
+        payload["message_thread_id"] = message_thread_id
     response = requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
-        json={
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": disable_preview,
-        },
+        json=payload,
         timeout=timeout,
     )
     response.raise_for_status()
@@ -59,6 +63,7 @@ def send_disclosure(
     disclosure: Disclosure,
     *,
     anahtar_kelime: str | None = None,
+    message_thread_id: int | None = None,
 ) -> None:
     message = format_disclosure_message(disclosure, anahtar_kelime=anahtar_kelime)
-    send_message(token, chat_id, message)
+    send_message(token, chat_id, message, message_thread_id=message_thread_id)

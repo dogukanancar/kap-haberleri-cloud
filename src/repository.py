@@ -72,7 +72,8 @@ def set_setting(key: str, value: str) -> None:
 def list_filter_rules(active_only: bool = False) -> list[FilterRule]:
     query = """
         SELECT id, kural_adi, aktif, sirket_kodlari, konu_oid_listesi,
-               anahtar_kelimeler, haric_kelimeler, bildirim_sinifi, telegram_chat_id
+               anahtar_kelimeler, haric_kelimeler, bildirim_sinifi,
+               telegram_chat_id, telegram_topic_id
         FROM filtre_kurallari
     """
     if active_only:
@@ -93,6 +94,7 @@ def list_filter_rules(active_only: bool = False) -> list[FilterRule]:
             haric_kelimeler=_loads_json_list(row["haric_kelimeler"]),
             bildirim_sinifi=row["bildirim_sinifi"],
             telegram_chat_id=row["telegram_chat_id"],
+            telegram_topic_id=row.get("telegram_topic_id"),
         )
         for row in rows
     ]
@@ -109,6 +111,7 @@ def save_filter_rule(
     haric_kelimeler: list[str],
     bildirim_sinifi: str | None,
     telegram_chat_id: str,
+    telegram_topic_id: str | None = None,
 ) -> None:
     params = {
         "kural_adi": kural_adi,
@@ -119,6 +122,7 @@ def save_filter_rule(
         "haric_kelimeler": _dumps_json_list(haric_kelimeler),
         "bildirim_sinifi": bildirim_sinifi or None,
         "telegram_chat_id": telegram_chat_id,
+        "telegram_topic_id": (telegram_topic_id or "").strip() or None,
     }
 
     with get_session() as session:
@@ -135,6 +139,7 @@ def save_filter_rule(
                         haric_kelimeler = :haric_kelimeler,
                         bildirim_sinifi = :bildirim_sinifi,
                         telegram_chat_id = :telegram_chat_id,
+                        telegram_topic_id = :telegram_topic_id,
                         guncelleme_tarihi = NOW()
                     WHERE id = :id
                     """
@@ -147,11 +152,13 @@ def save_filter_rule(
                     """
                     INSERT INTO filtre_kurallari (
                         kural_adi, aktif, sirket_kodlari, konu_oid_listesi,
-                        anahtar_kelimeler, haric_kelimeler, bildirim_sinifi, telegram_chat_id
+                        anahtar_kelimeler, haric_kelimeler, bildirim_sinifi,
+                        telegram_chat_id, telegram_topic_id
                     )
                     VALUES (
                         :kural_adi, :aktif, :sirket_kodlari, :konu_oid_listesi,
-                        :anahtar_kelimeler, :haric_kelimeler, :bildirim_sinifi, :telegram_chat_id
+                        :anahtar_kelimeler, :haric_kelimeler, :bildirim_sinifi,
+                        :telegram_chat_id, :telegram_topic_id
                     )
                     """
                 ),

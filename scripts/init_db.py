@@ -15,14 +15,13 @@ from src.db import get_engine
 
 def main() -> None:
     settings = get_settings()
-    schema_path = ROOT / "sql" / "001_schema.sql"
-    sql = schema_path.read_text(encoding="utf-8")
-    statements = [part.strip() for part in sql.split(";") if part.strip()]
-
     engine = get_engine()
     with engine.begin() as conn:
-        for statement in statements:
-            conn.execute(text(statement))
+        for schema_name in ("001_schema.sql", "002_telegram_topic_id.sql"):
+            sql = (ROOT / "sql" / schema_name).read_text(encoding="utf-8")
+            statements = [part.strip() for part in sql.split(";") if part.strip()]
+            for statement in statements:
+                conn.execute(text(statement))
 
     print(f"Schema uygulandi: {settings.database_url.split('@')[-1]}")
 

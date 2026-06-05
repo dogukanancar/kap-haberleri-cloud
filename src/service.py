@@ -38,11 +38,17 @@ def process_disclosures(disclosures: list[Disclosure]) -> dict[str, int]:
                 continue
 
             try:
+                topic_id = (
+                    int(rule.telegram_topic_id)
+                    if rule.telegram_topic_id and rule.telegram_topic_id.strip()
+                    else None
+                )
                 telegram_bot.send_disclosure(
                     settings.telegram_bot_token,
                     rule.telegram_chat_id,
                     disclosure,
                     anahtar_kelime=get_matched_keyword(disclosure, rule),
+                    message_thread_id=topic_id,
                 )
                 repository.mark_disclosure_sent(
                     disclosure_index=disclosure.disclosure_index,

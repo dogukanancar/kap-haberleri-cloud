@@ -203,6 +203,13 @@ def _render_filter_form(
         telegram_chat_id = st.text_input(
             "Telegram chat ID",
             value=initial.get("telegram_chat_id", settings.default_telegram_chat_id or ""),
+            help="Grup icin -100... ile baslar.",
+        )
+        telegram_topic_id = st.text_input(
+            "Telegram topic ID (opsiyonel)",
+            value=initial.get("telegram_topic_id", ""),
+            placeholder="184",
+            help="Forum grubunda konu ID. t.me/c/.../184 linkindeki son sayi.",
         )
         submitted = st.form_submit_button(submit_label, type="primary")
         if not submitted:
@@ -229,6 +236,7 @@ def _render_filter_form(
                 haric_kelimeler=parsed_excludes,
                 bildirim_sinifi=bildirim_sinifi or None,
                 telegram_chat_id=telegram_chat_id,
+                telegram_topic_id=telegram_topic_id.strip() or None,
             )
         except Exception as exc:
             st.error(f"Kayit basarisiz: {exc}")
@@ -275,7 +283,8 @@ def page_filters(settings: Settings) -> None:
     for rule in rules:
         with st.container(border=True):
             st.write(f"**{rule.kural_adi}** ({'Aktif' if rule.aktif else 'Pasif'})")
-            st.caption(f"Chat: {rule.telegram_chat_id}")
+            topic_label = f", Topic: {rule.telegram_topic_id}" if rule.telegram_topic_id else ""
+            st.caption(f"Chat: {rule.telegram_chat_id}{topic_label}")
             st.caption(f"Kelimeler: {', '.join(rule.anahtar_kelimeler) or '-'}")
             if rule.sirket_kodlari:
                 st.caption(f"Sirket sayisi: {len(rule.sirket_kodlari)}")
@@ -310,6 +319,7 @@ def page_filters(settings: Settings) -> None:
                         "haric_kelimeler": _join_csv(rule.haric_kelimeler),
                         "bildirim_sinifi": rule.bildirim_sinifi,
                         "telegram_chat_id": rule.telegram_chat_id,
+                        "telegram_topic_id": rule.telegram_topic_id or "",
                     },
                 ):
                     st.session_state.edit_rule_id = None
@@ -411,15 +421,37 @@ def page_settings(settings: Settings) -> None:
         st.success("Ayarlar kaydedildi.")
 
     st.subheader("Telegram test")
-    test_chat = st.text_input("Test chat ID", value=settings.default_telegram_chat_id or "")
+    active_rules = repository.list_filter_rules(active_only=True)
+    default_chat = settings.default_telegram_chat_id or ""
+    default_topic = ""
+    if active_rules:
+        default_chat = active_rules[0].telegram_chat_id or default_chat
+        default_topic = active_rules[0].telegram_topic_id or ""
+    st.caption(
+        "Test, asagidaki alanlara gore gider. "
+        "Filtre kurallarindaki chat/topic ile ayni olmali."
+    )
+    test_chat = st.text_input(
+        "Test chat ID",
+        value=default_chat,
+        help="Ornek grup: -1003684878522",
+    )
+    test_topic = st.text_input(
+        "Test topic ID (opsiyonel)",
+        value=default_topic,
+        placeholder="184",
+        help="Forum konusu: t.me/c/.../184 son sayi",
+    )
     if st.button("Test mesaji gonder"):
         if not settings.telegram_bot_token or not test_chat:
             st.error("TELEGRAM_BOT_TOKEN ve chat ID gerekli.")
         else:
+            topic_id = int(test_topic.strip()) if test_topic.strip() else None
             telegram_bot.send_message(
                 settings.telegram_bot_token,
                 test_chat,
                 "<b>KAP Haberleri Cloud</b>\nTest mesaji basarili.",
+                message_thread_id=topic_id,
             )
             st.success("Test mesaji gonderildi.")
 

@@ -29,3 +29,4 @@ class FilterRule:
     haric_kelimeler: list[str]
     bildirim_sinifi: str | None
     telegram_chat_id: str
+    telegram_topic_id: str | None = None
