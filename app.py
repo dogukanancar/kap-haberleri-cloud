@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 from src.config import Settings, get_settings
 from src.db import test_connection
+from src.filters import find_matching_rules
 from src.kap_fetcher import KapFetchError, fetch_recent_disclosures
 from src import repository
 from src.service import process_disclosures
@@ -338,6 +339,34 @@ def page_manual_check() -> None:
                 )
 
     st.subheader("Onizleme (gonderilmez)")
+    if st.button("Kurallara gore onizle"):
+        try:
+            disclosures = fetch_recent_disclosures(days=days)
+            rules = repository.list_filter_rules(active_only=True)
+            if not rules:
+                st.warning("Aktif kural yok.")
+            else:
+                matched_rows = []
+                for disclosure in disclosures:
+                    matching = find_matching_rules(disclosure, rules)
+                    if matching:
+                        matched_rows.append(
+                            {
+                                "kural": ", ".join(r.kural_adi for r in matching),
+                                "sirket": disclosure.company_code,
+                                "konu": disclosure.subject,
+                                "ozet": disclosure.summary or disclosure.title,
+                                "url": disclosure.url,
+                            }
+                        )
+                st.info(f"{len(disclosures)} bildirim tarandi, {len(matched_rows)} kural eslesmesi.")
+                if matched_rows:
+                    st.dataframe(matched_rows[:50], use_container_width=True)
+                else:
+                    st.warning("Hic eslesme yok. Anahtar kelime veya sirket kodlarini kontrol edin.")
+        except KapFetchError as exc:
+            st.error(str(exc))
+
     if st.button("Sadece listele"):
         try:
             disclosures = fetch_recent_disclosures(days=days)

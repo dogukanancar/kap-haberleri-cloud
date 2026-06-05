@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from src.models import Disclosure, FilterRule
 
 
@@ -7,15 +9,28 @@ def _normalize_list(values: list[str]) -> list[str]:
     return [value.strip().lower() for value in values if value and value.strip()]
 
 
+def _disclosure_company_codes(disclosure: Disclosure) -> set[str]:
+    raw = disclosure.company_code or ""
+    parts = re.split(r"[,;/\s]+", raw)
+    return {part.strip().lower() for part in parts if part.strip()}
+
+
+def _company_matches(disclosure: Disclosure, rule_codes: list[str]) -> bool:
+    if not rule_codes:
+        return True
+    disclosure_codes = _disclosure_company_codes(disclosure)
+    if not disclosure_codes:
+        return False
+    return bool(disclosure_codes & set(rule_codes))
+
+
 def matches_rule(disclosure: Disclosure, rule: FilterRule) -> bool:
     if not rule.aktif:
         return False
 
     company_codes = _normalize_list(rule.sirket_kodlari)
-    if company_codes:
-        code = (disclosure.company_code or "").lower()
-        if code not in company_codes:
-            return False
+    if company_codes and not _company_matches(disclosure, company_codes):
+        return False
 
     subject_oids = _normalize_list(rule.konu_oid_listesi)
     if subject_oids:
