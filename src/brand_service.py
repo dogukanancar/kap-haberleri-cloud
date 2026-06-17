@@ -50,10 +50,6 @@ def run_brand_worker(*, force: bool = False) -> dict[str, str | bool | int]:
         return {"status": "skipped", "reason": "inactive"}
 
     today = _today_istanbul()
-    if not force and repository.get_setting("son_brand_kontrol_tarihi", "") == today:
-        repository.log_event("INFO", "brand_worker", "Bugun kontrol zaten yapildi.", detail=today)
-        return {"status": "skipped", "reason": "already_checked_today"}
-
     can_send, reason, due_slot = evaluate_send_window(force=force)
     if not can_send:
         config = get_schedule_config()
@@ -63,7 +59,7 @@ def run_brand_worker(*, force: bool = False) -> dict[str, str | bool | int]:
             "Brand kontrolu atlandi.",
             detail=(
                 f"reason={reason}, plan={config.send_times_display}, "
-                f"sent={len(config.sent_today)}/{config.daily_count}"
+                f"completed={config.completed_display}"
             ),
         )
         return {"status": "skipped", "reason": reason}
@@ -86,9 +82,6 @@ def run_brand_worker(*, force: bool = False) -> dict[str, str | bool | int]:
 
     save_snapshot(report)
 
-    _mark_checked(today)
-    record_scheduled_send(None if force else due_slot)
-
     telegram_bot.send_brand_alert(
         settings.telegram_bot_token,
         chat_id,
@@ -98,6 +91,9 @@ def run_brand_worker(*, force: bool = False) -> dict[str, str | bool | int]:
         check_date=today,
         message_thread_id=topic_id,
     )
+    _mark_checked(today)
+    if not force and due_slot:
+        record_scheduled_send(due_slot)
     repository.set_setting("son_brand_gonderim_tarihi", today)
     repository.log_event(
         "INFO",

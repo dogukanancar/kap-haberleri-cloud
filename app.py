@@ -454,45 +454,23 @@ def page_settings(settings: Settings) -> None:
     except Exception as exc:
         st.error(f"Veritabani baglantisi basarisiz: {exc}")
 
-    worker_aktif = st.checkbox(
-        "Worker aktif (GitHub Actions)",
-        value=repository.get_setting("worker_aktif", "1") == "1",
-        help="Kapaliysa GitHub Actions worker calismaz.",
-    )
-
-    if st.button("Ayarlari kaydet"):
-        repository.set_setting("worker_aktif", "1" if worker_aktif else "0")
-        st.success("Ayarlar kaydedildi.")
-
     st.subheader("CDS bildirimi (ayri worker)")
     st.caption("KAP worker'indan bagimsiz. GitHub Actions CDS Worker ayarlara gore calisir.")
 
     schedule = get_schedule_config()
-    schedule_col1, schedule_col2, schedule_col3 = st.columns(3)
-    schedule_col1.metric("Planlanan saatler (TR)", schedule.send_times_display or "-")
-    schedule_col2.metric("Gunluk gonderim", f"{schedule.daily_count} kez")
-    schedule_col3.metric(
-        "Bugun gonderilen",
-        f"{len(schedule.sent_today)}/{schedule.daily_count}",
-    )
+    schedule_col1, schedule_col2 = st.columns(2)
+    schedule_col1.metric("Calisma saatleri (TR)", schedule.send_times_display or "-")
+    schedule_col2.metric("Bugun tamamlanan", schedule.completed_display)
     st.caption(f"Worker kontrol araligi: {GITHUB_CHECK_INTERVAL}")
 
-    schedule_input_col1, schedule_input_col2 = st.columns(2)
-    cds_daily_count = schedule_input_col1.number_input(
-        "Gunluk gonderim sayisi",
-        min_value=1,
-        max_value=10,
-        value=int(repository.get_setting("cds_gunluk_gonderim_sayisi", "1") or "1"),
-        help="Bir gunde en fazla kac kez CDS mesaji gonderilsin.",
-    )
-    cds_send_times = schedule_input_col2.text_input(
-        "Gonderim saatleri (TR)",
+    cds_send_times = st.text_input(
+        "Calisma saatleri (TR)",
         value=repository.get_setting(
             "cds_gonderim_saatleri",
             repository.get_setting("cds_calisma_saati", "18:00"),
         ),
         placeholder="18:00 veya 10:00,18:00",
-        help="Europe/Istanbul saati. Birden fazla gonderim icin virgulle ayirin.",
+        help="Europe/Istanbul saati. Her saat icin gunluk bir kez calisir.",
     )
 
     cds_worker_aktif = st.checkbox(
@@ -517,10 +495,7 @@ def page_settings(settings: Settings) -> None:
     col_cds_a, col_cds_b, col_cds_c = st.columns(3)
     if col_cds_a.button("CDS ayarlarini kaydet", key="save_cds_settings"):
         try:
-            save_schedule_settings(
-                send_times=cds_send_times.strip(),
-                daily_count=int(cds_daily_count),
-            )
+            save_schedule_settings(send_times=cds_send_times.strip())
         except ValueError as exc:
             st.error(str(exc))
         else:
@@ -542,10 +517,7 @@ def page_settings(settings: Settings) -> None:
             st.error("Grup chat ID icin topic ID zorunlu.")
         else:
             try:
-                save_schedule_settings(
-                    send_times=cds_send_times.strip(),
-                    daily_count=int(cds_daily_count),
-                )
+                save_schedule_settings(send_times=cds_send_times.strip())
             except ValueError as exc:
                 st.error(str(exc))
             else:
@@ -570,33 +542,20 @@ def page_settings(settings: Settings) -> None:
     )
 
     brand_schedule = get_brand_schedule_config()
-    brand_col1, brand_col2, brand_col3 = st.columns(3)
-    brand_col1.metric("Kontrol saati (TR)", brand_schedule.send_times_display or "-")
-    brand_col2.metric("Gunluk kontrol", f"{brand_schedule.daily_count} kez")
-    brand_col3.metric(
-        "Bugun kontrol",
-        f"{len(brand_schedule.sent_today)}/{brand_schedule.daily_count}",
-    )
+    brand_col1, brand_col2 = st.columns(2)
+    brand_col1.metric("Calisma saatleri (TR)", brand_schedule.send_times_display or "-")
+    brand_col2.metric("Bugun tamamlanan", brand_schedule.completed_display)
     st.caption(f"Worker kontrol araligi: {BRAND_GITHUB_CHECK_INTERVAL}")
 
-    brand_input_col1, brand_input_col2 = st.columns(2)
-    brand_daily_count = brand_input_col1.number_input(
-        "Gunluk kontrol sayisi",
-        min_value=1,
-        max_value=10,
-        value=int(repository.get_setting("brand_gunluk_gonderim_sayisi", "1") or "1"),
-        key="brand_daily_count",
-        help="Bir gunde en fazla kac kez kontrol ve uyari gonderilsin.",
-    )
-    brand_send_times = brand_input_col2.text_input(
-        "Kontrol saatleri (TR)",
+    brand_send_times = st.text_input(
+        "Calisma saatleri (TR)",
         value=repository.get_setting(
             "brand_gonderim_saatleri",
             repository.get_setting("brand_calisma_saati", "09:00"),
         ),
         placeholder="09:00 veya 09:00,18:00",
         key="brand_send_times",
-        help="Birden fazla kontrol icin virgulle ayirin.",
+        help="Europe/Istanbul saati. Her saat icin gunluk bir kez calisir.",
     )
     brand_year = st.number_input(
         "Rapor yili",
@@ -629,10 +588,7 @@ def page_settings(settings: Settings) -> None:
     col_brand_a, col_brand_b, col_brand_c = st.columns(3)
     if col_brand_a.button("Brand ayarlarini kaydet", key="save_brand_settings"):
         try:
-            save_brand_schedule_settings(
-                send_times=brand_send_times.strip(),
-                daily_count=int(brand_daily_count),
-            )
+            save_brand_schedule_settings(send_times=brand_send_times.strip())
         except ValueError as exc:
             st.error(str(exc))
         else:
@@ -661,10 +617,7 @@ def page_settings(settings: Settings) -> None:
             st.error("Grup chat ID icin topic ID zorunlu.")
         else:
             try:
-                save_brand_schedule_settings(
-                    send_times=brand_send_times.strip(),
-                    daily_count=int(brand_daily_count),
-                )
+                save_brand_schedule_settings(send_times=brand_send_times.strip())
             except ValueError as exc:
                 st.error(str(exc))
             else:
@@ -688,6 +641,19 @@ def page_settings(settings: Settings) -> None:
                     st.error(f"Hata: {exc}")
 
     st.subheader("Telegram test")
+    st.caption("KAP filtre bildirimleri ve baglanti testi.")
+
+    kap_worker_aktif = st.checkbox(
+        "KAP worker aktif (GitHub Actions)",
+        value=repository.get_setting("worker_aktif", "1") == "1",
+        help="Kapaliysa GitHub Actions KAP taramasi calismaz. CDS ve Brand ayarlarindan bagimsiz.",
+        key="kap_worker_aktif",
+    )
+    if st.button("KAP worker ayarini kaydet", key="save_kap_worker"):
+        repository.set_setting("worker_aktif", "1" if kap_worker_aktif else "0")
+        st.success("KAP worker ayari kaydedildi.")
+        st.rerun()
+
     all_rules = repository.list_filter_rules()
     active_rules = [r for r in all_rules if r.aktif]
     if not active_rules:

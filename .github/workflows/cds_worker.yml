@@ -2,8 +2,9 @@ name: CDS Worker
 
 on:
   schedule:
-    # Planlanan saatlere gore kontrol (Europe/Istanbul saat basi)
-    - cron: "0 * * * *"
+    # Europe/Istanbul: 09:00, 20:30
+    - cron: "0 6 * * *"
+    - cron: "30 17 * * *"
   workflow_dispatch:
 
 permissions:

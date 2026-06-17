@@ -48,7 +48,7 @@ def run_cds_worker(*, force: bool = False) -> dict[str, str | float]:
             "CDS gonderimi atlandi.",
             detail=(
                 f"reason={reason}, plan={config.send_times_display}, "
-                f"sent={len(config.sent_today)}/{config.daily_count}"
+                f"completed={config.completed_display}"
             ),
         )
         return {"status": "skipped", "reason": reason}
@@ -75,8 +75,11 @@ def run_cds_worker(*, force: bool = False) -> dict[str, str | float]:
         message_thread_id=topic_id,
     )
 
-    record_scheduled_send(None if force else due_slot)
     today = _today_istanbul()
+    if not force and due_slot:
+        record_scheduled_send(due_slot)
+    else:
+        repository.set_setting("son_cds_gonderim_tarihi", today)
     repository.set_setting("son_cds_degeri", f"{snapshot.value_bp:.2f}")
     repository.set_setting("son_cds_kontrol_zamani", datetime.now(timezone.utc).isoformat())
     repository.log_event(
