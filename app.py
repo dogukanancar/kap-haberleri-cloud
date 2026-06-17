@@ -734,7 +734,7 @@ def main() -> None:
     settings = get_settings()
 
     st.title("KAP Haberleri Cloud")
-    st.caption("Streamlit Cloud + GitHub Actions + Neon PostgreSQL")
+    st.caption("Yerel panel + GitHub Actions + Neon PostgreSQL")
 
     st.sidebar.info("Worker: GitHub Actions (5 dk)\nCDS + Brand: paneldeki saat/plana gore")
 
