@@ -22,6 +22,9 @@ def _apply_streamlit_secrets() -> None:
             "TELEGRAM_BOT_TOKEN": "TELEGRAM_BOT_TOKEN",
             "TELEGRAM_CHAT_ID": "TELEGRAM_CHAT_ID",
             "KAP_BASE_URL": "KAP_BASE_URL",
+            "GITHUB_WORKFLOW_TOKEN": "GITHUB_WORKFLOW_TOKEN",
+            "GITHUB_REPOSITORY": "GITHUB_REPOSITORY",
+            "GITHUB_BRANCH": "GITHUB_BRANCH",
         }
         for secret_key, env_key in mapping.items():
             if secret_key in st.secrets:
@@ -36,6 +39,9 @@ class Settings:
     telegram_bot_token: str | None
     default_telegram_chat_id: str | None
     kap_base_url: str
+    github_workflow_token: str | None
+    github_repository: str
+    github_branch: str
 
 
 def reload_settings() -> None:
@@ -58,4 +64,7 @@ def get_settings() -> Settings:
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN") or None,
         default_telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID") or None,
         kap_base_url=os.getenv("KAP_BASE_URL", "https://www.kap.org.tr"),
+        github_workflow_token=os.getenv("GITHUB_WORKFLOW_TOKEN") or None,
+        github_repository=os.getenv("GITHUB_REPOSITORY", "dogukanancar/kap-haberleri-cloud"),
+        github_branch=os.getenv("GITHUB_BRANCH", "main"),
     )

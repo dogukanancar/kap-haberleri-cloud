@@ -34,6 +34,7 @@ from src import repository
 from src.service import process_disclosures
 from src import telegram_bot
 from src.models import FilterRule
+from src.workflow_schedule import WorkflowScheduleError, sync_workflow_schedule
 
 st.set_page_config(page_title="KAP Haberleri Cloud", page_icon="☁️", layout="wide")
 
@@ -57,6 +58,23 @@ def _test_target_from_rules(
     if rules:
         return rules[0].telegram_chat_id, rules[0].telegram_topic_id or ""
     return fallback_chat, ""
+
+
+def _sync_worker_workflow(
+    settings: Settings,
+    *,
+    workflow_path: str,
+    label: str,
+    send_times: str,
+) -> None:
+    sync_workflow_schedule(
+        token=settings.github_workflow_token,
+        repository=settings.github_repository,
+        branch=settings.github_branch,
+        workflow_path=workflow_path,
+        label=label,
+        send_times=send_times,
+    )
 
 
 def _split_company_codes(value: str) -> list[str]:
@@ -495,9 +513,17 @@ def page_settings(settings: Settings) -> None:
     col_cds_a, col_cds_b, col_cds_c = st.columns(3)
     if col_cds_a.button("CDS ayarlarini kaydet", key="save_cds_settings"):
         try:
+            _sync_worker_workflow(
+                settings,
+                workflow_path=".github/workflows/cds_worker.yml",
+                label="CDS",
+                send_times=cds_send_times.strip(),
+            )
             save_schedule_settings(send_times=cds_send_times.strip())
         except ValueError as exc:
             st.error(str(exc))
+        except WorkflowScheduleError as exc:
+            st.error(f"CDS workflow guncellenemedi: {exc}")
         else:
             repository.set_setting("cds_worker_aktif", "1" if cds_worker_aktif else "0")
             repository.set_setting("cds_telegram_chat_id", cds_chat.strip())
@@ -517,9 +543,17 @@ def page_settings(settings: Settings) -> None:
             st.error("Grup chat ID icin topic ID zorunlu.")
         else:
             try:
+                _sync_worker_workflow(
+                    settings,
+                    workflow_path=".github/workflows/cds_worker.yml",
+                    label="CDS",
+                    send_times=cds_send_times.strip(),
+                )
                 save_schedule_settings(send_times=cds_send_times.strip())
             except ValueError as exc:
                 st.error(str(exc))
+            except WorkflowScheduleError as exc:
+                st.error(f"CDS workflow guncellenemedi: {exc}")
             else:
                 repository.set_setting("cds_worker_aktif", "1" if cds_worker_aktif else "0")
                 repository.set_setting("cds_telegram_chat_id", cds_chat.strip())
@@ -588,9 +622,17 @@ def page_settings(settings: Settings) -> None:
     col_brand_a, col_brand_b, col_brand_c = st.columns(3)
     if col_brand_a.button("Brand ayarlarini kaydet", key="save_brand_settings"):
         try:
+            _sync_worker_workflow(
+                settings,
+                workflow_path=".github/workflows/brand_worker.yml",
+                label="Brand",
+                send_times=brand_send_times.strip(),
+            )
             save_brand_schedule_settings(send_times=brand_send_times.strip())
         except ValueError as exc:
             st.error(str(exc))
+        except WorkflowScheduleError as exc:
+            st.error(f"Brand workflow guncellenemedi: {exc}")
         else:
             repository.set_setting("brand_worker_aktif", "1" if brand_worker_aktif else "0")
             repository.set_setting("brand_telegram_chat_id", brand_chat.strip())
@@ -617,9 +659,17 @@ def page_settings(settings: Settings) -> None:
             st.error("Grup chat ID icin topic ID zorunlu.")
         else:
             try:
+                _sync_worker_workflow(
+                    settings,
+                    workflow_path=".github/workflows/brand_worker.yml",
+                    label="Brand",
+                    send_times=brand_send_times.strip(),
+                )
                 save_brand_schedule_settings(send_times=brand_send_times.strip())
             except ValueError as exc:
                 st.error(str(exc))
+            except WorkflowScheduleError as exc:
+                st.error(f"Brand workflow guncellenemedi: {exc}")
             else:
                 repository.set_setting("brand_worker_aktif", "1" if brand_worker_aktif else "0")
                 repository.set_setting("brand_telegram_chat_id", brand_chat.strip())
