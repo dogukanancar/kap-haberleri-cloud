@@ -456,7 +456,7 @@ def page_settings(settings: Settings) -> None:
 
     st.subheader("CDS bildirimi (ayri worker)")
     st.caption(
-        "KAP worker'indan bagimsiz. Zamanlayici her 5 dakikada worker'i tetikler; "
+        "KAP worker'indan bagimsiz. Worker her 5 dakikada kontrol eder (cron-job.org + GitHub Actions); "
         "gonderim saatleri panelden DB'ye yazilir."
     )
 
@@ -540,7 +540,7 @@ def page_settings(settings: Settings) -> None:
 
     st.subheader("Brandirectory Turkiye 125 (ayri worker)")
     st.caption(
-        "KAP ve CDS worker'larindan bagimsiz. Zamanlayici her 5 dakikada worker'i tetikler; "
+        "KAP ve CDS worker'larindan bagimsiz. Worker her 5 dakikada kontrol eder (cron-job.org + GitHub Actions); "
         "gonderim saatleri panelden DB'ye yazilir."
     )
 

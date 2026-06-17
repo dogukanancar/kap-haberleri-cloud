@@ -45,22 +45,30 @@ Actions sekmesinden **KAP Worker** workflow'unu `Run workflow` ile test edin.
 
 ### Otomatik worker (5 dakika) — onerilen kurulum
 
-GitHub'in yerlesik `schedule` tetikleyicisi bazi repolarda calismayabilir. **Guvenilir cozum:** [cron-job.org](https://cron-job.org) (ucretsiz) ile workflow'u her 5 dakikada bir tetikleyin.
+GitHub'in yerlesik `schedule` tetikleyicisi bazi repolarda guvenilir calismaz. **Guvenilir cozum:** [cron-job.org](https://cron-job.org) (ucretsiz) ile workflow'lari her 5 dakikada bir tetikleyin.
 
 1. GitHub → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained token**
 2. Repository: `kap-haberleri-cloud`, izin: **Actions: Read and write**
-3. [cron-job.org](https://console.cron-job.org) → Create cronjob:
-   - **URL:** `https://api.github.com/repos/dogukanancar/kap-haberleri-cloud/actions/workflows/kap_worker.yml/dispatches`
-   - **Schedule:** every 5 minutes
-   - **Request method:** POST
-   - **Headers:**
-     - `Accept: application/vnd.github+json`
-     - `Authorization: Bearer GITHUB_TOKEN_BURAYA`
-     - `X-GitHub-Api-Version: 2022-11-28`
-   - **Body (JSON):** `{"ref":"main"}`
-4. Kaydet ve **Test run** ile dogrula; Actions'ta yeni **KAP Worker** calismasi gorunmeli.
+3. [cron-job.org](https://console.cron-job.org) → iki cron job olusturun (her 5 dakika):
 
-Yedek: repoda **KAP Worker Zamanlayici** workflow'u da GitHub schedule ile ana worker'i tetiklemeyi dener.
+**KAP Worker**
+
+- **URL:** `https://api.github.com/repos/dogukanancar/kap-haberleri-cloud/actions/workflows/kap_worker.yml/dispatches`
+- **Request method:** POST
+- **Headers:**
+  - `Accept: application/vnd.github+json`
+  - `Authorization: Bearer GITHUB_TOKEN_BURAYA`
+  - `X-GitHub-Api-Version: 2022-11-28`
+- **Body (JSON):** `{"ref":"main"}`
+
+**CDS + Brand Worker (tek job)**
+
+- **URL:** `https://api.github.com/repos/dogukanancar/kap-haberleri-cloud/actions/workflows/cds_brand_worker_poll.yml/dispatches`
+- Ayni header ve body ayarlari
+
+4. Kaydet ve **Test run** ile dogrula; Actions'ta yeni calismalar gorunmeli.
+
+Yedek: repoda schedule cron'lari da var (**KAP Worker**, **CDS Brand Worker Poll**); GitHub schedule calisirsa ek koruma saglar.
 
 Yerel test:
 
