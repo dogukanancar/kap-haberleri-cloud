@@ -10,7 +10,7 @@ from src import repository
 
 ISTANBUL = ZoneInfo("Europe/Istanbul")
 TIME_PATTERN = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
-GITHUB_CHECK_INTERVAL = "Her 5 dakika (cron-job.org + GitHub Actions)"
+GITHUB_CHECK_INTERVAL = "Her 5 dakika (KAP worker ile birlikte)"
 SEND_WINDOW = timedelta(minutes=15)
 
 

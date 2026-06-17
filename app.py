@@ -456,8 +456,8 @@ def page_settings(settings: Settings) -> None:
 
     st.subheader("CDS bildirimi (ayri worker)")
     st.caption(
-        "KAP worker'indan bagimsiz. Worker her 5 dakikada kontrol eder (cron-job.org + GitHub Actions); "
-        "gonderim saatleri panelden DB'ye yazilir."
+        "KAP worker'indan bagimsiz mantik; ayni 5 dk cron job ile calisir. "
+        "Paneldeki saat gelince gonderir, degilse atlar."
     )
 
     schedule = get_schedule_config()
@@ -540,8 +540,8 @@ def page_settings(settings: Settings) -> None:
 
     st.subheader("Brandirectory Turkiye 125 (ayri worker)")
     st.caption(
-        "KAP ve CDS worker'larindan bagimsiz. Worker her 5 dakikada kontrol eder (cron-job.org + GitHub Actions); "
-        "gonderim saatleri panelden DB'ye yazilir."
+        "KAP ve CDS worker'larindan bagimsiz mantik; ayni 5 dk cron job ile calisir. "
+        "Paneldeki saat gelince gonderir, degilse atlar."
     )
 
     brand_schedule = get_brand_schedule_config()
