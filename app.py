@@ -11,6 +11,21 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.brand_fetcher import BrandFetchError, fetch_turkiye125_report
+from src.brand_snapshot import compare_report, load_snapshot
+from src.brand_schedule import (
+    GITHUB_CHECK_INTERVAL as BRAND_GITHUB_CHECK_INTERVAL,
+    get_schedule_config as get_brand_schedule_config,
+    save_schedule_settings as save_brand_schedule_settings,
+)
+from src.brand_service import run_brand_worker
+from src.cds_fetcher import CdsFetchError, fetch_turkey_cds_5y
+from src.cds_schedule import (
+    GITHUB_CHECK_INTERVAL,
+    get_schedule_config,
+    save_schedule_settings,
+)
+from src.cds_service import run_cds_worker
 from src.config import Settings, get_settings
 from src.db import test_connection
 from src.filters import find_matching_rules
@@ -449,6 +464,229 @@ def page_settings(settings: Settings) -> None:
         repository.set_setting("worker_aktif", "1" if worker_aktif else "0")
         st.success("Ayarlar kaydedildi.")
 
+    st.subheader("CDS bildirimi (ayri worker)")
+    st.caption("KAP worker'indan bagimsiz. GitHub Actions CDS Worker ayarlara gore calisir.")
+
+    schedule = get_schedule_config()
+    schedule_col1, schedule_col2, schedule_col3 = st.columns(3)
+    schedule_col1.metric("Planlanan saatler (TR)", schedule.send_times_display or "-")
+    schedule_col2.metric("Gunluk gonderim", f"{schedule.daily_count} kez")
+    schedule_col3.metric(
+        "Bugun gonderilen",
+        f"{len(schedule.sent_today)}/{schedule.daily_count}",
+    )
+    st.caption(f"Worker kontrol araligi: {GITHUB_CHECK_INTERVAL}")
+
+    schedule_input_col1, schedule_input_col2 = st.columns(2)
+    cds_daily_count = schedule_input_col1.number_input(
+        "Gunluk gonderim sayisi",
+        min_value=1,
+        max_value=10,
+        value=int(repository.get_setting("cds_gunluk_gonderim_sayisi", "1") or "1"),
+        help="Bir gunde en fazla kac kez CDS mesaji gonderilsin.",
+    )
+    cds_send_times = schedule_input_col2.text_input(
+        "Gonderim saatleri (TR)",
+        value=repository.get_setting(
+            "cds_gonderim_saatleri",
+            repository.get_setting("cds_calisma_saati", "18:00"),
+        ),
+        placeholder="18:00 veya 10:00,18:00",
+        help="Europe/Istanbul saati. Birden fazla gonderim icin virgulle ayirin.",
+    )
+
+    cds_worker_aktif = st.checkbox(
+        "CDS worker aktif",
+        value=repository.get_setting("cds_worker_aktif", "1") == "1",
+        help="Kapaliysa CDS worker Telegram'a mesaj gondermez.",
+    )
+    cds_chat = st.text_input(
+        "CDS chat ID",
+        value=repository.get_setting("cds_telegram_chat_id", settings.default_telegram_chat_id or ""),
+        help="Bos birakilirsa TELEGRAM_CHAT_ID kullanilir.",
+    )
+    cds_topic = st.text_input(
+        "CDS topic ID (grup icin zorunlu)",
+        value=repository.get_setting("cds_telegram_topic_id", ""),
+        placeholder="Ornek: 184",
+    )
+    last_cds_date = repository.get_setting("son_cds_gonderim_tarihi", "-") or "-"
+    last_cds_value = repository.get_setting("son_cds_degeri", "-") or "-"
+    st.info(f"Son gonderim: {last_cds_date} | Son deger: {last_cds_value} bp")
+
+    col_cds_a, col_cds_b, col_cds_c = st.columns(3)
+    if col_cds_a.button("CDS ayarlarini kaydet", key="save_cds_settings"):
+        try:
+            save_schedule_settings(
+                send_times=cds_send_times.strip(),
+                daily_count=int(cds_daily_count),
+            )
+        except ValueError as exc:
+            st.error(str(exc))
+        else:
+            repository.set_setting("cds_worker_aktif", "1" if cds_worker_aktif else "0")
+            repository.set_setting("cds_telegram_chat_id", cds_chat.strip())
+            repository.set_setting("cds_telegram_topic_id", cds_topic.strip())
+            st.success("CDS ayarlari kaydedildi.")
+            st.rerun()
+    if col_cds_b.button("CDS verisini test et", key="test_cds_fetch"):
+        try:
+            snapshot = fetch_turkey_cds_5y()
+            st.success(f"CDS: {snapshot.value_bp:.2f} bp ({snapshot.as_of_date or '-'})")
+        except CdsFetchError as exc:
+            st.error(str(exc))
+    if col_cds_c.button("CDS simdi gonder", key="force_cds_send"):
+        if not settings.telegram_bot_token:
+            st.error("TELEGRAM_BOT_TOKEN gerekli.")
+        elif _group_chat_id(cds_chat.strip()) and not cds_topic.strip():
+            st.error("Grup chat ID icin topic ID zorunlu.")
+        else:
+            try:
+                save_schedule_settings(
+                    send_times=cds_send_times.strip(),
+                    daily_count=int(cds_daily_count),
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                repository.set_setting("cds_worker_aktif", "1" if cds_worker_aktif else "0")
+                repository.set_setting("cds_telegram_chat_id", cds_chat.strip())
+                repository.set_setting("cds_telegram_topic_id", cds_topic.strip())
+                try:
+                    result = run_cds_worker(force=True)
+                    if result.get("status") == "sent":
+                        st.success(f"CDS gonderildi: {result['value_bp']:.2f} bp")
+                    else:
+                        st.warning(f"Gonderilmedi: {result.get('reason', 'bilinmiyor')}")
+                except CdsFetchError as exc:
+                    st.error(str(exc))
+                except Exception as exc:
+                    st.error(f"Hata: {exc}")
+
+    st.subheader("Brandirectory Turkiye 125 (ayri worker)")
+    st.caption(
+        "KAP ve CDS worker'larindan bagimsiz. Gunluk kontrol yapar ve "
+        "Telegram'a uyari mesaji gonderir (degisiklik olsun veya olmasin)."
+    )
+
+    brand_schedule = get_brand_schedule_config()
+    brand_col1, brand_col2, brand_col3 = st.columns(3)
+    brand_col1.metric("Kontrol saati (TR)", brand_schedule.send_times_display or "-")
+    brand_col2.metric("Gunluk kontrol", f"{brand_schedule.daily_count} kez")
+    brand_col3.metric(
+        "Bugun kontrol",
+        f"{len(brand_schedule.sent_today)}/{brand_schedule.daily_count}",
+    )
+    st.caption(f"Worker kontrol araligi: {BRAND_GITHUB_CHECK_INTERVAL}")
+
+    brand_input_col1, brand_input_col2 = st.columns(2)
+    brand_daily_count = brand_input_col1.number_input(
+        "Gunluk kontrol sayisi",
+        min_value=1,
+        max_value=10,
+        value=int(repository.get_setting("brand_gunluk_gonderim_sayisi", "1") or "1"),
+        key="brand_daily_count",
+        help="Bir gunde en fazla kac kez kontrol ve uyari gonderilsin.",
+    )
+    brand_send_times = brand_input_col2.text_input(
+        "Kontrol saatleri (TR)",
+        value=repository.get_setting(
+            "brand_gonderim_saatleri",
+            repository.get_setting("brand_calisma_saati", "09:00"),
+        ),
+        placeholder="09:00 veya 09:00,18:00",
+        key="brand_send_times",
+        help="Birden fazla kontrol icin virgulle ayirin.",
+    )
+    brand_year = st.number_input(
+        "Rapor yili",
+        min_value=2010,
+        max_value=2035,
+        value=int(repository.get_setting("brand_rapor_yili", "2026") or "2026"),
+        key="brand_report_year",
+    )
+
+    brand_worker_aktif = st.checkbox(
+        "Brand worker aktif",
+        value=repository.get_setting("brand_worker_aktif", "1") == "1",
+        key="brand_worker_aktif",
+    )
+    brand_chat = st.text_input(
+        "Brand chat ID",
+        value=repository.get_setting("brand_telegram_chat_id", settings.default_telegram_chat_id or ""),
+        key="brand_chat",
+    )
+    brand_topic = st.text_input(
+        "Brand topic ID (grup icin zorunlu)",
+        value=repository.get_setting("brand_telegram_topic_id", ""),
+        placeholder="Ornek: 184",
+        key="brand_topic",
+    )
+    last_check = repository.get_setting("son_brand_kontrol_tarihi", "-") or "-"
+    last_alert = repository.get_setting("son_brand_gonderim_tarihi", "-") or "-"
+    st.info(f"Son kontrol: {last_check} | Son uyari: {last_alert}")
+
+    col_brand_a, col_brand_b, col_brand_c = st.columns(3)
+    if col_brand_a.button("Brand ayarlarini kaydet", key="save_brand_settings"):
+        try:
+            save_brand_schedule_settings(
+                send_times=brand_send_times.strip(),
+                daily_count=int(brand_daily_count),
+            )
+        except ValueError as exc:
+            st.error(str(exc))
+        else:
+            repository.set_setting("brand_worker_aktif", "1" if brand_worker_aktif else "0")
+            repository.set_setting("brand_telegram_chat_id", brand_chat.strip())
+            repository.set_setting("brand_telegram_topic_id", brand_topic.strip())
+            repository.set_setting("brand_rapor_yili", str(int(brand_year)))
+            st.success("Brand ayarlari kaydedildi.")
+            st.rerun()
+    if col_brand_b.button("Kontrol testi", key="test_brand_check"):
+        try:
+            report = fetch_turkiye125_report(year=int(brand_year))
+            check = compare_report(report, load_snapshot())
+            st.success(
+                "Gunluk uyari gonderilir: "
+                f"yeni rapor={'Var' if check.new_report else 'Yok'}, "
+                f"siralama degisikligi={'Var' if check.ranking_changed else 'Yok'}"
+                + (" (ilk kontrol)" if check.is_first_run else "")
+            )
+        except BrandFetchError as exc:
+            st.error(str(exc))
+    if col_brand_c.button("Brand simdi kontrol et", key="force_brand_send"):
+        if not settings.telegram_bot_token:
+            st.error("TELEGRAM_BOT_TOKEN gerekli.")
+        elif _group_chat_id(brand_chat.strip()) and not brand_topic.strip():
+            st.error("Grup chat ID icin topic ID zorunlu.")
+        else:
+            try:
+                save_brand_schedule_settings(
+                    send_times=brand_send_times.strip(),
+                    daily_count=int(brand_daily_count),
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                repository.set_setting("brand_worker_aktif", "1" if brand_worker_aktif else "0")
+                repository.set_setting("brand_telegram_chat_id", brand_chat.strip())
+                repository.set_setting("brand_telegram_topic_id", brand_topic.strip())
+                repository.set_setting("brand_rapor_yili", str(int(brand_year)))
+                try:
+                    result = run_brand_worker(force=True)
+                    if result.get("status") == "sent":
+                        st.success(
+                            "Uyari gonderildi: "
+                            f"yeni rapor={'Var' if result.get('new_report') else 'Yok'}, "
+                            f"siralama={'Var' if result.get('ranking_changed') else 'Yok'}"
+                        )
+                    else:
+                        st.warning(f"Islem tamamlanmadi: {result.get('reason', 'bilinmiyor')}")
+                except BrandFetchError as exc:
+                    st.error(str(exc))
+                except Exception as exc:
+                    st.error(f"Hata: {exc}")
+
     st.subheader("Telegram test")
     all_rules = repository.list_filter_rules()
     active_rules = [r for r in all_rules if r.aktif]
@@ -529,7 +767,7 @@ def main() -> None:
     st.title("KAP Haberleri Cloud")
     st.caption("Streamlit Cloud + GitHub Actions + Neon PostgreSQL")
 
-    st.sidebar.info("Worker: GitHub Actions (5 dk)")
+    st.sidebar.info("Worker: GitHub Actions (5 dk)\nCDS + Brand: paneldeki saat/plana gore")
 
     page = st.sidebar.radio(
         "Menu",

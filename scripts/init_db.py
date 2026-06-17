@@ -17,7 +17,15 @@ def main() -> None:
     settings = get_settings()
     engine = get_engine()
     with engine.begin() as conn:
-        for schema_name in ("001_schema.sql", "002_telegram_topic_id.sql"):
+        for schema_name in (
+            "001_schema.sql",
+            "002_telegram_topic_id.sql",
+            "003_cds_settings.sql",
+            "004_cds_schedule_settings.sql",
+            "005_brand_settings.sql",
+            "006_brand_daily_send.sql",
+            "007_brand_snapshot.sql",
+        ):
             sql = (ROOT / "sql" / schema_name).read_text(encoding="utf-8")
             statements = [part.strip() for part in sql.split(";") if part.strip()]
             for statement in statements:
