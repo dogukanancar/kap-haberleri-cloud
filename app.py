@@ -15,6 +15,7 @@ from src.brand_fetcher import BrandFetchError, fetch_turkiye125_report
 from src.brand_snapshot import compare_report, load_snapshot
 from src.brand_schedule import (
     GITHUB_CHECK_INTERVAL as BRAND_GITHUB_CHECK_INTERVAL,
+    evaluate_send_window as evaluate_brand_send_window,
     get_schedule_config as get_brand_schedule_config,
     save_schedule_settings as save_brand_schedule_settings,
 )
@@ -22,6 +23,7 @@ from src.brand_service import run_brand_worker
 from src.cds_fetcher import CdsFetchError, fetch_turkey_cds_5y
 from src.cds_schedule import (
     GITHUB_CHECK_INTERVAL,
+    evaluate_send_window as evaluate_cds_send_window,
     get_schedule_config,
     save_schedule_settings,
 )
@@ -34,7 +36,7 @@ from src import repository
 from src.service import process_disclosures
 from src import telegram_bot
 from src.models import FilterRule
-from src.workflow_schedule import WorkflowScheduleError, sync_workflow_schedule
+from src.workflow_schedule import WorkflowScheduleError, dispatch_workflow, sync_workflow_schedule
 
 st.set_page_config(page_title="KAP Haberleri Cloud", page_icon="☁️", layout="wide")
 
@@ -75,6 +77,24 @@ def _sync_worker_workflow(
         label=label,
         send_times=send_times,
     )
+
+
+def _dispatch_worker_workflow_if_due(
+    settings: Settings,
+    *,
+    workflow_path: str,
+    evaluate_window,
+) -> bool:
+    can_send, _reason, _slot = evaluate_window(force=False)
+    if not can_send:
+        return False
+    dispatch_workflow(
+        token=settings.github_workflow_token,
+        repository=settings.github_repository,
+        branch=settings.github_branch,
+        workflow_path=workflow_path,
+    )
+    return True
 
 
 def _split_company_codes(value: str) -> list[str]:
@@ -528,7 +548,15 @@ def page_settings(settings: Settings) -> None:
             repository.set_setting("cds_worker_aktif", "1" if cds_worker_aktif else "0")
             repository.set_setting("cds_telegram_chat_id", cds_chat.strip())
             repository.set_setting("cds_telegram_topic_id", cds_topic.strip())
-            st.success("CDS ayarlari kaydedildi.")
+            dispatched = _dispatch_worker_workflow_if_due(
+                settings,
+                workflow_path="cds_worker.yml",
+                evaluate_window=evaluate_cds_send_window,
+            )
+            if dispatched:
+                st.success("CDS ayarlari kaydedildi ve saat penceresi icinde oldugu icin workflow tetiklendi.")
+            else:
+                st.success("CDS ayarlari kaydedildi.")
             st.rerun()
     if col_cds_b.button("CDS verisini test et", key="test_cds_fetch"):
         try:
@@ -638,7 +666,15 @@ def page_settings(settings: Settings) -> None:
             repository.set_setting("brand_telegram_chat_id", brand_chat.strip())
             repository.set_setting("brand_telegram_topic_id", brand_topic.strip())
             repository.set_setting("brand_rapor_yili", str(int(brand_year)))
-            st.success("Brand ayarlari kaydedildi.")
+            dispatched = _dispatch_worker_workflow_if_due(
+                settings,
+                workflow_path="brand_worker.yml",
+                evaluate_window=evaluate_brand_send_window,
+            )
+            if dispatched:
+                st.success("Brand ayarlari kaydedildi ve saat penceresi icinde oldugu icin workflow tetiklendi.")
+            else:
+                st.success("Brand ayarlari kaydedildi.")
             st.rerun()
     if col_brand_b.button("Kontrol testi", key="test_brand_check"):
         try:

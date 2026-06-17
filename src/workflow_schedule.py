@@ -108,3 +108,30 @@ def sync_workflow_schedule(
             f"Workflow guncellenemedi: {update_response.status_code} {update_response.text}"
         )
     return parsed_times
+
+
+def dispatch_workflow(
+    *,
+    token: str | None,
+    repository: str,
+    branch: str,
+    workflow_path: str,
+) -> None:
+    if not token:
+        raise WorkflowScheduleError("GITHUB_WORKFLOW_TOKEN tanimli degil.")
+
+    api_url = f"https://api.github.com/repos/{repository}/actions/workflows/{workflow_path}/dispatches"
+    response = requests.post(
+        api_url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        json={"ref": branch},
+        timeout=30,
+    )
+    if response.status_code >= 400:
+        raise WorkflowScheduleError(
+            f"Workflow tetiklenemedi: {response.status_code} {response.text}"
+        )
