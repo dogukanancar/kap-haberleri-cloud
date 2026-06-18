@@ -44,7 +44,7 @@ cd "C:\Kap Haberleri Cloud"
 streamlit run app.py
 ```
 
-Veya `scripts\run_panel.bat` dosyasini calistirin.
+Veya `run_panel.bat` dosyasini calistirin.
 
 Panel `.env` dosyasindan okur. CDS/Brand calisma saatlerini **Ayarlar** sayfasindan kaydedin; ayarlar Neon DB'ye yazilir.
 

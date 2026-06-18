@@ -473,7 +473,7 @@ def page_settings(settings: Settings) -> None:
             repository.get_setting("cds_calisma_saati", "18:00"),
         ),
         placeholder="18:00 veya 10:00,18:00",
-        help="Europe/Istanbul saati. Her saat icin gunluk bir kez calisir.",
+        help="Belirlediğiniz saatlerde çalışır. Saatler arasına virgül ekleyin.",
     )
 
     cds_worker_aktif = st.checkbox(
@@ -484,7 +484,6 @@ def page_settings(settings: Settings) -> None:
     cds_chat = st.text_input(
         "CDS chat ID",
         value=repository.get_setting("cds_telegram_chat_id", settings.default_telegram_chat_id or ""),
-        help="Bos birakilirsa TELEGRAM_CHAT_ID kullanilir.",
     )
     cds_topic = st.text_input(
         "CDS topic ID (grup icin zorunlu)",
@@ -558,7 +557,7 @@ def page_settings(settings: Settings) -> None:
         ),
         placeholder="09:00 veya 09:00,18:00",
         key="brand_send_times",
-        help="Europe/Istanbul saati. Her saat icin gunluk bir kez calisir.",
+        help="Belirlediğiniz saatlerde çalışır. Saatler arasına virgül ekleyin.",
     )
     brand_year = st.number_input(
         "Rapor yili",
