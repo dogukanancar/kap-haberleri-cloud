@@ -156,7 +156,7 @@ def _render_db_clear_section() -> None:
 
 def _render_db_maintenance_section() -> None:
     st.subheader("DB Bakim")
-    st.caption("Neon PostgreSQL ANALYZE bakimi.")
+    st.caption("PostgreSQL ANALYZE bakimi.")
 
     counts = repository.get_table_counts()
     st.write(
@@ -445,7 +445,7 @@ def page_manual_check() -> None:
 def page_settings(settings: Settings) -> None:
     st.header("Ayarlar")
     parsed = urlparse(settings.database_url)
-    st.write(f"Veritabani: `Neon PostgreSQL` / `{parsed.path.lstrip('/') or 'postgres'}`")
+    st.write(f"Veritabani: `Supabase PostgreSQL` / `{parsed.path.lstrip('/') or 'postgres'}`")
     st.caption("Otomatik tarama: GitHub Actions (her 5 dakika)")
 
     try:
@@ -733,7 +733,7 @@ def main() -> None:
     settings = get_settings()
 
     st.title("KAP Haberleri Cloud")
-    st.caption("Yerel panel + GitHub Actions + Neon PostgreSQL")
+    st.caption("Yerel panel + GitHub Actions + Supabase PostgreSQL")
 
     st.sidebar.info("Worker: GitHub Actions (5 dk)\nCDS + Brand: paneldeki saat/plana gore")
 

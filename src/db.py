@@ -53,7 +53,7 @@ def get_session():
 def test_connection() -> str:
     settings = get_settings()
     parsed = urlparse(settings.database_url)
-    host = parsed.hostname or "neon"
+    host = parsed.hostname or "postgres"
     db_name = (parsed.path or "/").lstrip("/") or "postgres"
     with get_engine().connect() as conn:
         row = conn.execute(text("SELECT current_database() AS db_name")).one()
