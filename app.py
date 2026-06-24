@@ -29,7 +29,7 @@ from src.cds_service import run_cds_worker
 from src.config import Settings, get_settings
 from src.db import test_connection
 from src.filters import find_matching_rules
-from src.kap_fetcher import KapFetchError, fetch_recent_disclosures
+from src.kap_fetcher import KapFetchError, fetch_bist_stock_codes, fetch_recent_disclosures
 from src import repository
 from src.service import process_disclosures
 from src import telegram_bot
@@ -193,6 +193,33 @@ def _join_csv(values: list[str]) -> str:
     return ", ".join(values)
 
 
+def _merge_company_codes(existing_text: str, new_codes: list[str]) -> str:
+    merged = _split_company_codes(existing_text)
+    seen = set(merged)
+    for code in new_codes:
+        if code not in seen:
+            seen.add(code)
+            merged.append(code)
+    return _join_csv(merged)
+
+
+def _filter_company_field_key(form_key: str) -> str:
+    return f"{form_key}_sirket_kodlari"
+
+
+def _sync_filter_company_draft(
+    form_key: str,
+    initial: dict,
+    rule_id: int | None,
+) -> None:
+    field_key = _filter_company_field_key(form_key)
+    sig_key = f"{form_key}_draft_sig"
+    signature = f"{rule_id}:{initial.get('sirket_kodlari', '')}"
+    if st.session_state.get(sig_key) != signature:
+        st.session_state[field_key] = initial.get("sirket_kodlari", "")
+        st.session_state[sig_key] = signature
+
+
 def _bildirim_sinifi_index(value: str | None) -> int:
     options = ["", "ODA", "FR", "DG", "FON"]
     normalized = (value or "").upper()
@@ -208,18 +235,25 @@ def _render_filter_form(
     initial: dict | None = None,
 ) -> bool:
     initial = initial or {}
+    _sync_filter_company_draft(form_key, initial, rule_id)
+    company_field_key = _filter_company_field_key(form_key)
+
     with st.form(form_key):
         kural_adi = st.text_input(
             "Kural adi",
             value=initial.get("kural_adi", ""),
             placeholder="Ornek: Halka arz",
         )
-        aktif = st.checkbox("Aktif", value=initial.get("aktif", True))
+        col_aktif, col_kap = st.columns([1, 3])
+        with col_aktif:
+            aktif = st.checkbox("Aktif", value=initial.get("aktif", True))
+        with col_kap:
+            fetch_kap = st.form_submit_button("KAP'tan tum sirketleri cek")
         sirket_kodlari = st.text_area(
             "Sirket kodlari (virgulle)",
-            value=initial.get("sirket_kodlari", ""),
             placeholder="THYAO, AKBNK",
             height=100,
+            key=company_field_key,
         )
         anahtar_kelimeler = st.text_input(
             "Anahtar kelimeler (virgulle ayirin)",
@@ -252,6 +286,22 @@ def _render_filter_form(
             help="Forum grubunda konu ID. t.me/c/.../184 linkindeki son sayi.",
         )
         submitted = st.form_submit_button(submit_label, type="primary")
+
+        if fetch_kap:
+            try:
+                kap_codes = fetch_bist_stock_codes()
+                current = st.session_state.get(company_field_key, "")
+                st.session_state[company_field_key] = _merge_company_codes(current, kap_codes)
+                st.session_state["filter_kap_info"] = (
+                    f"KAP listesinden {len(kap_codes)} sirket kodu listeye eklendi."
+                )
+            except KapFetchError as exc:
+                st.session_state["filter_kap_error"] = str(exc)
+            except Exception as exc:
+                st.session_state["filter_kap_error"] = f"Sirket listesi alinamadi: {exc}"
+            st.rerun()
+            return False
+
         if not submitted:
             return False
         if not kural_adi or not telegram_chat_id:
@@ -307,6 +357,12 @@ def page_filters(settings: Settings) -> None:
     save_info = st.session_state.pop("filter_save_info", None)
     if save_info:
         st.success(save_info)
+    kap_info = st.session_state.pop("filter_kap_info", None)
+    if kap_info:
+        st.success(kap_info)
+    kap_error = st.session_state.pop("filter_kap_error", None)
+    if kap_error:
+        st.error(kap_error)
 
     with st.expander(
         "Yeni kural ekle",

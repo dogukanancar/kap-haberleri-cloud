@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 ISTANBUL = ZoneInfo("Europe/Istanbul")
 KAP_QUERY_URL = "https://www.kap.org.tr/tr/api/disclosure/members/byCriteria"
+KAP_COMPANY_LIST_URL = "https://www.kap.org.tr/tr/api/company/items/IGS/A"
 DEFAULT_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -185,3 +186,45 @@ def fetch_recent_disclosures(days: int = 1) -> list[Disclosure]:
     disclosures = list(seen.values())
     disclosures.sort(key=lambda d: d.publish_time, reverse=True)
     return disclosures
+
+
+def fetch_bist_stock_codes(timeout: tuple[int, int] = (10, 60)) -> list[str]:
+    """KAP uzerindeki aktif BIST sirket hisse kodlarini dondurur."""
+    headers = {
+        **DEFAULT_HEADERS,
+        "Referer": "https://www.kap.org.tr/tr/sirketler",
+    }
+    headers.pop("Content-Type", None)
+    try:
+        response = requests.get(
+            KAP_COMPANY_LIST_URL,
+            headers=headers,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException as exc:
+        raise KapFetchError(
+            "KAP sirket listesi alinamadi. Internet baglantinizi kontrol edip tekrar deneyin."
+        ) from exc
+
+    if not isinstance(payload, list):
+        raise KapFetchError("KAP sirket listesi beklenmeyen formatta dondu.")
+
+    codes: list[str] = []
+    seen: set[str] = set()
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        raw = item.get("stockCode") or item.get("stockCodes")
+        if not raw:
+            continue
+        for part in str(raw).replace(";", ",").split(","):
+            code = part.strip().upper()
+            if code and code not in seen:
+                seen.add(code)
+                codes.append(code)
+    codes.sort()
+    if not codes:
+        raise KapFetchError("KAP sirket listesi bos dondu.")
+    return codes
