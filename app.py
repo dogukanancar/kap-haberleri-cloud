@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 import streamlit as st
 
@@ -84,12 +86,41 @@ def _split_keywords(value: str) -> list[str]:
     return result
 
 
+def _format_son_kontrol(raw: str) -> str:
+    text = (raw or "").strip()
+    if not text or text == "-":
+        return "-"
+    try:
+        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        local = dt.astimezone(ZoneInfo("Europe/Istanbul"))
+        ms = f".{local.microsecond // 1000:03d}" if local.microsecond else ""
+        return local.strftime("%d.%m.%Y %H:%M:%S") + ms + " TR"
+    except ValueError:
+        return text
+
+
+def _render_dashboard_metric(label: str, value: str) -> None:
+    st.markdown(
+        f'<p style="font-size:0.875rem;color:rgb(180,180,180);margin:0 0 0.25rem 0;">'
+        f"{label}</p>"
+        f'<p style="font-size:1.25rem;font-weight:600;margin:0;line-height:1.3;'
+        f'word-break:break-word;">{value}</p>',
+        unsafe_allow_html=True,
+    )
+
+
 def page_dashboard() -> None:
     st.header("Dashboard")
     col1, col2, col3 = st.columns(3)
     col1.metric("Bugun gonderilen", repository.count_sent_today())
     col2.metric("Aktif kural", len(repository.list_filter_rules(active_only=True)))
-    col3.metric("Son kontrol", repository.get_setting("son_kontrol_zamani", "-") or "-")
+    with col3:
+        _render_dashboard_metric(
+            "Son kontrol",
+            _format_son_kontrol(repository.get_setting("son_kontrol_zamani", "")),
+        )
 
     st.subheader("Son gonderilen bildirimler")
     sent = repository.list_sent_disclosures(limit=20)
