@@ -75,6 +75,7 @@ python scripts/check_db.py
 | `scripts/sync_company_list_from_kap.py` | KAP BIST sirket kodlarini filtre kuralina yazar |
 | `scripts/sync_company_list_from_neon.py` | Neon aciksa sirket listesini Neon'dan ceker |
 | `scripts/import_filter_from_neon.py` | Neon'dan tum filtre kurallarini aktarir |
+| `scripts/check_worker_health.py` | Son worker/GitHub run yasi ve planli saat kontrolu |
 
 ## 2. Yerel panel
 
@@ -164,7 +165,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\trigger_github_worker.ps1
 | CDS | `cds_worker_aktif` | `cds_gonderim_saatleri` penceresinde |
 | Brand | `brand_worker_aktif` | `brand_gonderim_saatleri` penceresinde |
 
-Saat penceresi: planlanan saatten itibaren **15 dakika**. Kacirilan pencere telafi edilmez; o gun o saat atlanir.
+Saat penceresi: planlanan saatten itibaren **15 dakika**; kacirilirsa ayni gun icinde **12 saat catch-up** (ilk kacirilan slot).
+
+Saglik kontrolu: `python scripts/check_worker_health.py` — cron durdu mu, worker ne zaman calisti.
 
 ## Notlar
 

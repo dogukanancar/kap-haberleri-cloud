@@ -12,6 +12,7 @@ ISTANBUL = ZoneInfo("Europe/Istanbul")
 TIME_PATTERN = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
 GITHUB_CHECK_INTERVAL = "Her 5 dakika (KAP worker ile birlikte)"
 SEND_WINDOW = timedelta(minutes=15)
+CATCHUP_WINDOW = timedelta(hours=12)
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,7 @@ def find_due_slot(config: CdsScheduleConfig, now: datetime | None = None) -> str
     else:
         current = current.astimezone(ISTANBUL)
 
-    due_slot: str | None = None
+    catchup_slot: str | None = None
     for slot in config.send_times:
         if slot in config.completed_today:
             continue
@@ -106,9 +107,15 @@ def find_due_slot(config: CdsScheduleConfig, now: datetime | None = None) -> str
             second=0,
             microsecond=0,
         )
-        if timedelta(0) <= current - slot_at < SEND_WINDOW:
-            due_slot = slot
-    return due_slot
+        if current < slot_at:
+            continue
+        elapsed = current - slot_at
+        if elapsed < SEND_WINDOW:
+            return slot
+        if elapsed <= CATCHUP_WINDOW:
+            if catchup_slot is None or slot < catchup_slot:
+                catchup_slot = slot
+    return catchup_slot
 
 
 def evaluate_send_window(*, force: bool = False) -> tuple[bool, str, str | None]:

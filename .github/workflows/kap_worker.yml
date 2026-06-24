@@ -39,6 +39,7 @@ jobs:
           python -c "import os,sys; missing=[k for k in ['DATABASE_URL','TELEGRAM_BOT_TOKEN'] if not os.getenv(k)]; print('Eksik:', missing) if missing else print('Secrets OK'); sys.exit(1 if missing else 0)"
 
       - name: KAP kontrolu ve Telegram gonderimi
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
