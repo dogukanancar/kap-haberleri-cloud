@@ -45,15 +45,27 @@ Write-Host "Semalar uygulaniyor (init_db)..." -ForegroundColor Cyan
 python scripts/init_db.py
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
+Write-Host "Desktop ayarlari aktariliyor..." -ForegroundColor Cyan
+python scripts/migrate_from_desktop.py
+
+Write-Host "Uretim ayarlari uygulaniyor..." -ForegroundColor Cyan
+python scripts/seed_supabase_settings.py
+
 Write-Host ""
 python scripts/check_db.py
 
 Write-Host ""
 Write-Host "=== Yerel kurulum tamam ===" -ForegroundColor Green
 Write-Host ""
-Write-Host "Simdi sizin yapmaniz gerekenler:"
-Write-Host "  1. GitHub -> kap-haberleri-cloud -> Settings -> Secrets -> Actions"
-Write-Host "  2. DATABASE_URL secret'ini Supabase Session pooler URI ile guncelleyin"
-Write-Host "  3. Panel: streamlit run app.py  (veya run_panel.bat)"
-Write-Host "  4. Ayarlar sayfasindan filtreleri ve CDS/Brand ayarlarini yeniden kaydedin"
-Write-Host "  5. GitHub Actions -> KAP Worker -> Run workflow ile test edin"
+
+if ($env:GITHUB_TOKEN) {
+    Write-Host "GitHub DATABASE_URL secret guncelleniyor..." -ForegroundColor Cyan
+    python scripts/set_github_database_secret.py
+} else {
+    Write-Host "GITHUB_TOKEN yok; GitHub secret otomatik guncellenemedi." -ForegroundColor Yellow
+    Write-Host "cron-job.org token'iniz varsa:"
+    Write-Host '  $env:GITHUB_TOKEN = "ghp_..."; python scripts/set_github_database_secret.py'
+}
+
+Write-Host ""
+Write-Host "Panel: .\run_panel.bat"
