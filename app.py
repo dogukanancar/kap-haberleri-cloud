@@ -30,6 +30,7 @@ from src.cds_schedule import (
 from src.cds_service import run_cds_worker
 from src.config import Settings, get_settings
 from src.db import test_connection
+from src import db_maintenance
 from src.filters import find_matching_rules
 from src.kap_fetcher import KapFetchError, fetch_bist_stock_codes, fetch_recent_disclosures
 from src import repository
@@ -129,15 +130,250 @@ def page_dashboard() -> None:
     else:
         st.info("Henuz gonderilen bildirim yok.")
 
-    st.divider()
-    _render_db_clear_section()
-    st.divider()
-    _render_db_maintenance_section()
+
+_DB_BAKIM_CSS = """
+<style>
+    .db-success {
+        background-color: #1a472a; border-left: 4px solid #2d6a4f;
+        padding: 10px 15px; border-radius: 4px; color: #95d5b2; margin: 10px 0;
+    }
+    .db-warn {
+        background-color: #4a3000; border-left: 4px solid #FF9800;
+        padding: 10px 15px; border-radius: 4px; color: #FFE082; margin: 10px 0;
+    }
+    .db-info {
+        background-color: #1a3a4a; border-left: 4px solid #48cae4;
+        padding: 10px 15px; border-radius: 4px; color: #90e0ef; margin: 10px 0;
+    }
+</style>
+"""
 
 
-def _render_db_clear_section() -> None:
-    st.subheader("DB sil veya temizle")
-    st.caption("Dikkat: Bu islemler geri alinamaz.")
+def _format_table_rows(rows: list[dict], columns: dict[str, str]) -> list[dict]:
+    return [{label: row.get(key) for key, label in columns.items()} for row in rows]
+
+
+def page_db_bakim() -> None:
+    st.markdown(_DB_BAKIM_CSS, unsafe_allow_html=True)
+    st.header("Veritabani Bakim")
+    try:
+        conn_label = test_connection()
+    except Exception as exc:
+        conn_label = f"baglanti hatasi: {exc}"
+    st.caption(f"PostgreSQL (Supabase): `{conn_label}`")
+
+    tab_idx, tab_durum, tab_yedek = st.tabs(["Index Bakim", "Durum", "Yedek / Temizleme"])
+
+    with tab_idx:
+        _render_db_index_bakim()
+    with tab_durum:
+        _render_db_durum()
+    with tab_yedek:
+        _render_db_yedek()
+        st.divider()
+        _render_db_temizleme()
+
+
+def _render_db_index_bakim() -> None:
+    st.subheader("Index saglik raporu")
+
+    col_a, col_b = st.columns([1, 3])
+    with col_a:
+        if st.button("Raporu yenile", key="idx_yenile"):
+            st.rerun()
+    with col_b:
+        if st.button("Eksik performans indexlerini uygula", type="secondary", key="idx_ensure"):
+            with st.spinner("Performans indexleri uygulaniyor..."):
+                try:
+                    yeni = db_maintenance.ensure_performance_indexes()
+                    if yeni:
+                        st.success(f"{len(yeni)} yeni index: {', '.join(yeni)}")
+                    else:
+                        st.info("Tum performans indexleri zaten mevcut.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
+
+    try:
+        frag = db_maintenance.get_fragmentation_report()
+    except Exception as exc:
+        st.error(f"Index raporu alinamadi: {exc}")
+        frag = []
+
+    if frag:
+        durum_map = {
+            "iyi": "Iyi",
+            "vacuum": "VACUUM",
+            "analyze": "ANALYZE",
+            "kullanilmiyor": "Kullanilmiyor",
+        }
+        for row in frag:
+            row["durum"] = durum_map.get(row.get("durum"), row.get("durum"))
+        st.dataframe(
+            _format_table_rows(
+                frag,
+                {
+                    "tablo": "Tablo",
+                    "idx": "Index",
+                    "boyut_mb": "Boyut MB",
+                    "tarama_sayisi": "Tarama",
+                    "olu_satir": "Olu satir",
+                    "durum": "Durum",
+                },
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.info("Index verisi yuklenemedi.")
+
+    st.divider()
+    c1, c2 = st.columns(2)
+    with c1:
+        min_frag = st.slider("Min olu satir esigi (x200)", 1, 20, 5, key="idx_min_frag")
+    with c2:
+        rebuild_esik = st.slider(
+            "Kullanilmayan index REINDEX esigi (<=25 aktif)",
+            10,
+            50,
+            30,
+            key="idx_rebuild",
+        )
+
+    fullscan = st.checkbox("Tum tablolarda ANALYZE calistir", value=True, key="idx_fullscan")
+
+    if st.button("Index bakimini baslat", type="primary", key="idx_bakim"):
+        with st.spinner("VACUUM / ANALYZE / REINDEX yapiliyor..."):
+            try:
+                sonuc = db_maintenance.run_index_maintenance(
+                    min_frag=float(min_frag),
+                    rebuild_threshold=float(rebuild_esik),
+                    fullscan_stats=fullscan,
+                )
+                for satir in sonuc.get("detay", []):
+                    st.write(satir)
+                if sonuc["hatalar"]:
+                    st.markdown(
+                        f'<div class="db-warn">{len(sonuc["hatalar"])} hatali islem.</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for hata in sonuc["hatalar"]:
+                        st.warning(hata)
+                else:
+                    st.markdown(
+                        f'<div class="db-success">{sonuc["islem"]} bakim adimi tamamlandi.</div>',
+                        unsafe_allow_html=True,
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    with st.expander("Tum indexler"):
+        try:
+            idx_rows = db_maintenance.list_indexes()
+            if idx_rows:
+                st.dataframe(
+                    _format_table_rows(
+                        idx_rows,
+                        {"tablo": "Tablo", "idx": "Index", "tip": "Tip", "kolonlar": "Tanim"},
+                    ),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+        except Exception as exc:
+            st.error(str(exc))
+
+
+def _render_db_durum() -> None:
+    c1, c2, _ = st.columns([1, 2, 5])
+    with c1:
+        if st.button("Yenile", key="durum_yenile"):
+            st.rerun()
+    with c2:
+        if st.button("VACUUM ANALYZE calistir", key="durum_vacuum"):
+            with st.spinner("VACUUM ANALYZE..."):
+                try:
+                    mesajlar = db_maintenance.shrink_database()
+                    st.success(f"Tamamlandi: {', '.join(mesajlar)}")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
+
+    st.divider()
+    col_l, col_r = st.columns(2)
+
+    with col_l:
+        st.markdown("#### Tablo satir sayilari ve boyut")
+        try:
+            rows = db_maintenance.get_table_sizes()
+            if rows:
+                formatted = []
+                for row in rows:
+                    formatted.append(
+                        {
+                            "Tablo": row["tablo"],
+                            "Satir": f"{int(row['satir']):,}".replace(",", "."),
+                            "Boyut MB": row["boyut_mb"],
+                        }
+                    )
+                st.dataframe(formatted, use_container_width=True, hide_index=True)
+        except Exception as exc:
+            st.error(str(exc))
+
+    with col_r:
+        st.markdown("#### Veritabani ve tablo boyutlari")
+        try:
+            files = db_maintenance.get_db_file_sizes()
+            if files:
+                st.dataframe(
+                    _format_table_rows(
+                        files,
+                        {
+                            "dosya": "Ad",
+                            "tip": "Tip",
+                            "boyut_mb": "Boyut MB",
+                            "kullanilan_mb": "Veri MB",
+                        },
+                    ),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+        except Exception as exc:
+            st.error(str(exc))
+
+    st.markdown(
+        '<div class="db-info">Komut satiri: '
+        "<code>python scripts/init_db.py</code> · "
+        "<code>python scripts/check_db.py</code> · "
+        "<code>python scripts/check_worker_health.py</code></div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_db_yedek() -> None:
+    st.subheader("Yedekleme (Supabase)")
+    st.markdown(
+        '<div class="db-info">Bulut veritabani yerel .bak yedegi almaz. '
+        "Tam yedek ve geri yukleme icin Supabase panelini kullanin: "
+        "<strong>Project Settings → Database → Backups</strong>. "
+        "Ucretsiz planda gunluk otomatik yedekler saklanir.</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "- [Supabase Database Backups](https://supabase.com/docs/guides/platform/backups)\n"
+        "- [Point-in-time recovery](https://supabase.com/docs/guides/platform/backups#point-in-time-recovery) (Pro plan)"
+    )
+    st.caption(
+        "Panelden veri temizleme yapabilirsiniz; tam DB geri yukleme yalnizca Supabase uzerinden yapilir."
+    )
+
+
+def _render_db_temizleme() -> None:
+    st.subheader("Veri temizleme")
+    st.markdown(
+        '<div class="db-warn">Geri alinamaz. Gonderim gecmisi ve loglar silinir; '
+        "filtre kurallari ve uygulama ayarlari varsayilan olarak korunur.</div>",
+        unsafe_allow_html=True,
+    )
 
     counts = repository.get_table_counts()
     c1, c2, c3, c4 = st.columns(4)
@@ -163,6 +399,19 @@ def _render_db_clear_section() -> None:
         )
         st.rerun()
 
+    log_days = st.number_input(
+        "Eski log saklama suresi (gun)",
+        min_value=7,
+        max_value=365,
+        value=90,
+        step=1,
+        key="purge_log_days",
+    )
+    if st.button("Eski loglari temizle", key="purge_logs"):
+        deleted = repository.purge_old_logs(days=int(log_days))
+        st.success(f"{deleted} eski log kaydi silindi.")
+        st.rerun()
+
     with st.expander("Tum gecmisi sil (onayli)"):
         st.warning(
             "Gonderim gecmisi ve loglar kalici olarak silinir. "
@@ -183,41 +432,6 @@ def _render_db_clear_section() -> None:
                     "Filtre kurallari korundu."
                 )
                 st.rerun()
-
-
-def _render_db_maintenance_section() -> None:
-    st.subheader("DB Bakim")
-    st.caption("PostgreSQL ANALYZE bakimi.")
-
-    counts = repository.get_table_counts()
-    st.write(
-        f"Toplam kayit: **{sum(counts.values())}** "
-        f"({counts['gonderilen_bildirimler']} bildirim, "
-        f"{counts['islem_loglari']} log, "
-        f"{counts['filtre_kurallari']} kural)"
-    )
-
-    log_days = st.number_input(
-        "Eski log saklama suresi (gun)",
-        min_value=7,
-        max_value=365,
-        value=90,
-        step=1,
-    )
-    if st.button("Eski loglari temizle", key="purge_logs"):
-        deleted = repository.purge_old_logs(days=int(log_days))
-        st.success(f"{deleted} eski log kaydi silindi.")
-        st.rerun()
-
-    if st.button("Veritabani bakimini calistir", key="run_maintenance"):
-        with st.spinner("Bakim yapiliyor..."):
-            try:
-                steps = repository.run_db_maintenance()
-                st.success(f"Bakim tamamlandi ({len(steps)} adim).")
-                with st.expander("Yapilan islemler"):
-                    st.code("\n".join(steps))
-            except Exception as exc:
-                st.error(f"Bakim hatasi: {exc}")
 
 
 def _join_csv(values: list[str]) -> str:
@@ -826,7 +1040,7 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Menu",
-        ["Dashboard", "Filtreler", "Manuel Kontrol", "Ayarlar"],
+        ["Dashboard", "Filtreler", "Manuel Kontrol", "Ayarlar", "DB Bakim"],
     )
 
     if page == "Dashboard":
@@ -835,6 +1049,8 @@ def main() -> None:
         page_filters(settings)
     elif page == "Manuel Kontrol":
         page_manual_check()
+    elif page == "DB Bakim":
+        page_db_bakim()
     else:
         page_settings(settings)
 
