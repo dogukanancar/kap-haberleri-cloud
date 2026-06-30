@@ -23,10 +23,10 @@ def format_disclosure_message(
 
     return "\n".join(
         [
+            f"<b>İlgili Şirketler :</b> {sirket}",
             f"<b>Anahtar Kelime :</b> {keyword}",
             f"<b>Konu :</b> {konu}",
             f"<b>Özet :</b> {ozet}",
-            f"<b>İlgili Şirketler :</b> {sirket}",
             f'<b>Kap Link :</b> <a href="{kap_url}">{kap_url}</a>',
         ]
     )

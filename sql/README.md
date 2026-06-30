@@ -44,4 +44,8 @@ Tam liste `001_schema.sql` icindeki `INSERT` ifadesindedir.
 
 Eski kurulumlarda `ix_gonderilen_yayin_tarihi` varsa script otomatik kaldirir.
 
+## Telegram KAP mesaj sablonu
+
+KAP eslesmelerinde mesaj `src/telegram_bot.py` icinde su sirayla olusturulur: Ilgili Sirketler, Anahtar Kelime, Konu, Ozet, Kap Link. Masaustu surumle aynidir.
+
 Masaustu surumu (SQL Server): `C:\Kap Haberleri\sql\`

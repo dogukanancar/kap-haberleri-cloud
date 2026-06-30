@@ -32,6 +32,7 @@ Kap Haberleri Cloud/
 ├── app.py
 ├── worker_once.py / cds_worker_once.py / brand_worker_once.py
 ├── src/                       # Masaustu ile ayni modul yapisi
+│   ├── telegram_bot.py        # KAP Telegram mesaj sablonu
 │   └── db_maintenance.py      # PostgreSQL bakim (VACUUM/ANALYZE)
 ├── sql/
 │   ├── 001_schema.sql         # Tum sema (tek dosya)
@@ -119,6 +120,18 @@ Otomatik tetikleme: cron-job.org → `kap_worker.yml` dispatch (5 dk)
 | Brand | `brand_worker_aktif` | `brand_gonderim_saatleri` penceresinde |
 
 Saat penceresi: planlanan saatten itibaren **15 dakika**; kacirilirsa ayni gun **12 saat catch-up**.
+
+## Telegram KAP mesaj formati
+
+Eslesen her KAP bildirimi `src/telegram_bot.py` icinde asagidaki sirayla gonderilir:
+
+1. Ilgili Sirketler
+2. Anahtar Kelime
+3. Konu
+4. Ozet
+5. Kap Link
+
+Masaustu surumle (`C:\Kap Haberleri`) ayni sablon kullanilir.
 
 ## Notlar
 
