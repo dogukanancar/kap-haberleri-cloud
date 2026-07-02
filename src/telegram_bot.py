@@ -58,32 +58,35 @@ def send_message(
 
 
 def format_cds_message(snapshot: CdsSnapshot) -> str:
-    value_text = f"{snapshot.value_bp:.2f} bp"
-    lines = [
-        "<b>🇹🇷 Türkiye CDS (5Y USD)</b>",
-        "",
-        f"<b>Değer:</b> {html.escape(value_text)}",
-    ]
-    if snapshot.default_prob_pct is not None:
-        lines.append(
-            f"<b>Varsayılan olasılığı:</b> {html.escape(f'{snapshot.default_prob_pct:.2f} %')}"
-        )
-    if snapshot.as_of_date:
-        when = snapshot.as_of_date
-        if snapshot.as_of_time:
-            when = f"{snapshot.as_of_date} ({snapshot.as_of_time})"
-        lines.append(f"<b>Tarih:</b> {html.escape(when)}")
+    when = snapshot.as_of_date or "-"
+    if snapshot.as_of_date and snapshot.as_of_time:
+        when = f"{snapshot.as_of_date} ({snapshot.as_of_time})"
 
-    wgb_url = html.escape(snapshot.wgb_url)
-    investing_url = html.escape(snapshot.investing_url)
-    lines.extend(
-        [
-            "",
-            "<b>Kaynak:</b>",
-            f'<a href="{wgb_url}">World Government Bonds</a>',
-            f'<a href="{investing_url}">Investing.com</a>',
-        ]
+    bond_text = (
+        f"{snapshot.bond_10y_pct:.3f} %"
+        if snapshot.bond_10y_pct is not None
+        else "-"
     )
+    cb_rate_text = (
+        f"{snapshot.cb_rate_pct:.2f} %"
+        if snapshot.cb_rate_pct is not None
+        else "-"
+    )
+    if snapshot.cb_rate_pct is not None and snapshot.cb_rate_date:
+        cb_rate_text = f"{cb_rate_text} ({snapshot.cb_rate_date})"
+
+    lines = [
+        f"<b>Tarih :</b> {html.escape(when)}",
+        f"<b>CDS :</b> {html.escape(f'{snapshot.value_bp:.2f} bp')}",
+        f"<b>10 Yıllık Devlet Tahvili :</b> {html.escape(bond_text)}",
+        f"<b>Merkez Bankası Faiz Oranı :</b> {html.escape(cb_rate_text)}",
+        "",
+        "<b>Kredi Derecelendirme kurumları</b>",
+        f"<b>Standard &amp; Poor's :</b> {html.escape(snapshot.rating_sp or '-')}",
+        f"<b>Moody's Investors Service :</b> {html.escape(snapshot.rating_moodys or '-')}",
+        f"<b>Fitch Ratings :</b> {html.escape(snapshot.rating_fitch or '-')}",
+        f"<b>DBRS :</b> {html.escape(snapshot.rating_dbrs or '-')}",
+    ]
     return "\n".join(lines)
 
 

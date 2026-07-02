@@ -21,7 +21,13 @@ class Disclosure:
 @dataclass(frozen=True)
 class CdsSnapshot:
     value_bp: float
-    default_prob_pct: float | None
+    bond_10y_pct: float | None
+    cb_rate_pct: float | None
+    cb_rate_date: str | None
+    rating_sp: str | None
+    rating_moodys: str | None
+    rating_fitch: str | None
+    rating_dbrs: str | None
     as_of_date: str | None
     as_of_time: str | None
     wgb_url: str

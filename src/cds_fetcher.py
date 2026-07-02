@@ -42,6 +42,32 @@ def _parse_optional_float(raw: object) -> float | None:
         return None
 
 
+_RATING_AGENCIES = (
+    "Standard & Poor's",
+    "Moody's Investors Service",
+    "Fitch Ratings",
+    "DBRS",
+)
+
+
+def _parse_ratings_table(html: str) -> dict[str, str | None]:
+    ratings = {agency: None for agency in _RATING_AGENCIES}
+    if not html:
+        return ratings
+
+    for match in re.finditer(
+        r"<td>([^<]+)</td>\s*<td[^>]*class=\"w3-center\"[^>]*>([^<]*)</td>",
+        html,
+        re.I | re.S,
+    ):
+        agency = match.group(1).strip()
+        value = match.group(2).strip() or None
+        if agency in ratings:
+            ratings[agency] = value
+
+    return ratings
+
+
 def fetch_turkey_cds_5y(*, timeout: int = 30) -> CdsSnapshot:
     session = requests.Session()
     session.headers.update(DEFAULT_HEADERS)
@@ -87,9 +113,17 @@ def fetch_turkey_cds_5y(*, timeout: int = 30) -> CdsSnapshot:
     if value_bp is None:
         raise CdsFetchError("CDS degeri bulunamadi.")
 
+    ratings = _parse_ratings_table(str(payload.get("ratingTable") or ""))
+
     return CdsSnapshot(
         value_bp=value_bp,
-        default_prob_pct=_parse_optional_float(payload.get("lastCdsDefaultProb")),
+        bond_10y_pct=_parse_optional_float(payload.get("bond10y")),
+        cb_rate_pct=_parse_optional_float(payload.get("cbRateNumber")),
+        cb_rate_date=str(payload.get("cbRateDate") or "").strip() or None,
+        rating_sp=ratings["Standard & Poor's"],
+        rating_moodys=ratings["Moody's Investors Service"],
+        rating_fitch=ratings["Fitch Ratings"],
+        rating_dbrs=ratings["DBRS"],
         as_of_date=str(payload.get("lastDataValDesc") or "").strip() or None,
         as_of_time=str(payload.get("lastTimeValDesc") or "").strip() or None,
         wgb_url=WGB_COUNTRY_URL,
