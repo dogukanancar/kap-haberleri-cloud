@@ -75,7 +75,12 @@ def format_cds_message(snapshot: CdsSnapshot) -> str:
     if snapshot.cb_rate_pct is not None and snapshot.cb_rate_date:
         cb_rate_text = f"{cb_rate_text} ({snapshot.cb_rate_date})"
 
+    wgb_url = html.escape(snapshot.wgb_url)
+    investing_url = html.escape(snapshot.investing_url)
+
     lines = [
+        "<b>🇹🇷 Türkiye CDS (5Y USD)</b>",
+        "",
         f"<b>Tarih :</b> {html.escape(when)}",
         f"<b>CDS :</b> {html.escape(f'{snapshot.value_bp:.2f} bp')}",
         f"<b>10 Yıllık Devlet Tahvili :</b> {html.escape(bond_text)}",
@@ -86,6 +91,10 @@ def format_cds_message(snapshot: CdsSnapshot) -> str:
         f"<b>Moody's Investors Service :</b> {html.escape(snapshot.rating_moodys or '-')}",
         f"<b>Fitch Ratings :</b> {html.escape(snapshot.rating_fitch or '-')}",
         f"<b>DBRS :</b> {html.escape(snapshot.rating_dbrs or '-')}",
+        "",
+        "<b>Kaynak:</b>",
+        f'<a href="{wgb_url}">World Government Bonds</a>',
+        f'<a href="{investing_url}">Investing.com</a>',
     ]
     return "\n".join(lines)
 
