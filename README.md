@@ -32,7 +32,8 @@ Kap Haberleri Cloud/
 ├── app.py
 ├── worker_once.py / cds_worker_once.py / brand_worker_once.py
 ├── src/                       # Masaustu ile ayni modul yapisi
-│   ├── telegram_bot.py        # KAP Telegram mesaj sablonu
+│   ├── telegram_bot.py        # KAP ve CDS Telegram mesaj sablonlari
+│   ├── cds_fetcher.py         # WGB API'den CDS ve gostergeler
 │   └── db_maintenance.py      # PostgreSQL bakim (VACUUM/ANALYZE)
 ├── sql/
 │   ├── 001_schema.sql         # Tum sema (tek dosya)
@@ -132,6 +133,27 @@ Eslesen her KAP bildirimi `src/telegram_bot.py` icinde asagidaki sirayla gonderi
 5. Kap Link
 
 Masaustu surumle (`C:\Kap Haberleri`) ayni sablon kullanilir.
+
+## Telegram CDS mesaj formati
+
+CDS worker veriyi [World Government Bonds](https://www.worldgovernmentbonds.com/country/turkey/) API'sinden ceker (`src/cds_fetcher.py`); mesaj `src/telegram_bot.py` icinde olusturulur.
+
+| Telegram satiri | API alani |
+|-----------------|-----------|
+| Tarih | `lastDataValDesc`, `lastTimeValDesc` |
+| CDS | `lastCds` |
+| 10 Yillik Devlet Tahvili | `bond10y` |
+| Merkez Bankasi Faiz Orani | `cbRateNumber`, `cbRateDate` |
+| Kredi notlari (S&P, Moody's, Fitch, DBRS) | `ratingTable` HTML |
+
+Mesaj sirasi:
+
+1. Baslik: `Turkiye CDS (5Y USD)`
+2. Tarih, CDS, 10 yillik tahvil, MB faiz orani
+3. Kredi derecelendirme kurumlari (4 kurum)
+4. Kaynak linkleri (World Government Bonds, Investing.com)
+
+Masaustu surumle ayni sablon kullanilir.
 
 ## Notlar
 

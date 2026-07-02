@@ -48,4 +48,8 @@ Eski kurulumlarda `ix_gonderilen_yayin_tarihi` varsa script otomatik kaldirir.
 
 KAP eslesmelerinde mesaj `src/telegram_bot.py` icinde su sirayla olusturulur: Ilgili Sirketler, Anahtar Kelime, Konu, Ozet, Kap Link. Masaustu surumle aynidir.
 
+## Telegram CDS mesaj sablonu
+
+CDS worker WGB API'sinden veri ceker (`src/cds_fetcher.py`). Telegram mesaji: baslik, Tarih, CDS, 10 yillik tahvil, MB faizi, dort kredi notu, kaynak linkleri. Ayrinti: kok `README.md`.
+
 Masaustu surumu (SQL Server): `C:\Kap Haberleri\sql\`
