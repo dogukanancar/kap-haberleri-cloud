@@ -1,4 +1,4 @@
-# GitHub Actions worker'i harici zamanlayici (cron-job.org) veya manuel test icin tetikler.
+# GitHub Actions worker'i manuel test icin tetikler.
 # KAP Worker icinde CDS ve Brand de calisir (paneldeki saat gelince gonderir).
 # Kullanim: $env:GITHUB_TOKEN = "ghp_..." ; .\scripts\trigger_github_worker.ps1
 

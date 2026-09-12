@@ -8,17 +8,20 @@ Masaustu surumu (SQL Server): `C:\Kap Haberleri`
 |---------|-------|
 | **Panel** (`app.py`) | Filtreler, CDS/Brand saatleri, DB bakim, manuel test |
 | **GitHub Actions** (`kap_worker.yml`) | KAP + CDS + Brand (~5 dk) |
+| **Zamanlayici** (`kap_worker_trigger.yml`) | 5 dk'da bir KAP Worker'i tetikler |
+| **Keepalive** (`keepalive.yml`) | Ayda 2 commit; 60 gun inactivity kapanmasini onler |
 | **Supabase PostgreSQL** | Ayarlar, loglar, gonderim kayitlari |
-| **cron-job.org** | Workflow dispatch (onerilen tetikleyici) |
 
 ## Mimari
 
 ```
-cron-job.org (5 dk)
+kap_worker_trigger.yml (5 dk)
     -> kap_worker.yml
         -> worker_once.py
         -> cds_worker_once.py
         -> brand_worker_once.py
+
+keepalive.yml (1 ve 15 her ay) -> commit -> schedule acik kalir
 
 Panel (Streamlit) -> Supabase PostgreSQL
 ```
@@ -31,6 +34,10 @@ CDS ve Brand her turda calisir; Telegram'a yalnizca paneldeki **saat penceresind
 Kap Haberleri Cloud/
 ├── app.py
 ├── worker_once.py / cds_worker_once.py / brand_worker_once.py
+├── .github/workflows/
+│   ├── kap_worker.yml           # KAP + CDS + Brand
+│   ├── kap_worker_trigger.yml   # 5 dk tetikleyici
+│   └── keepalive.yml            # 60 gun inactivity onlemi
 ├── src/                       # Masaustu ile ayni modul yapisi
 │   ├── telegram_bot.py        # KAP ve CDS Telegram mesaj sablonlari
 │   ├── cds_fetcher.py         # WGB API'den CDS ve gostergeler
@@ -105,12 +112,23 @@ Semalar: [`sql/README.md`](sql/README.md)
 
 Secrets: `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 
+| Workflow | Gorev |
+|----------|-------|
+| `kap_worker.yml` | KAP + CDS + Brand isleri |
+| `kap_worker_trigger.yml` | Her 5 dakikada worker'i `workflow_dispatch` ile cagirir |
+| `keepalive.yml` | Her ayin 1 ve 15'inde commit; `disabled_inactivity` onler |
+
+Harici zamanlayici yok. 60 gun commit olmayinca GitHub her iki schedule'i de kapatir;
+keepalive bu sayaci sifirlar.
+
+Manuel test:
+
 ```powershell
 python scripts/trigger_github_worker.py
 # veya trigger_worker.bat
 ```
 
-Otomatik tetikleme: cron-job.org → `kap_worker.yml` dispatch (5 dk)
+Actions'ta workflow `disabled_inactivity` ise Enable + Run workflow yapin.
 
 ## Worker davranisi
 
@@ -157,6 +175,7 @@ Masaustu surumle ayni sablon kullanilir.
 
 ## Notlar
 
-- Supabase free: 500 MB; pause on inactivity (cron job DB'yi canli tutar)
+- Supabase free: 500 MB; ~7 gun DB islemi yoksa pause olur. Worker 5 dk'da bir yazdigi icin canli kalir.
+- GitHub, 60 gun commit olmayinca scheduled workflow'lari `disabled_inactivity` yapar. `keepalive.yml` ayda 2 kez commit atarak bunu onler.
 - Tam DB yedegi Supabase panelinden alinir (panelde `.bak` yok)
 - Ayar degisikligi git push gerektirmez; ayarlar DB'de

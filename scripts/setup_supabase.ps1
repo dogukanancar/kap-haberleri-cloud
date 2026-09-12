@@ -63,7 +63,6 @@ if ($env:GITHUB_TOKEN) {
     python scripts/set_github_database_secret.py
 } else {
     Write-Host "GITHUB_TOKEN yok; GitHub secret otomatik guncellenemedi." -ForegroundColor Yellow
-    Write-Host "cron-job.org token'iniz varsa:"
     Write-Host '  $env:GITHUB_TOKEN = "ghp_..."; python scripts/set_github_database_secret.py'
 }
 

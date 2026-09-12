@@ -452,16 +452,33 @@ def _filter_company_field_key(form_key: str) -> str:
     return f"{form_key}_sirket_kodlari"
 
 
+def _filter_company_pending_key(form_key: str) -> str:
+    return f"{form_key}_pending_companies"
+
+
 def _sync_filter_company_draft(
     form_key: str,
     initial: dict,
     rule_id: int | None,
 ) -> None:
+    """Widget olusturulmadan once sirket alanini doldur.
+
+    KAP cek sonucu pending key ile gelir; ayni run'da widget key'e yazilmaz.
+    """
     field_key = _filter_company_field_key(form_key)
+    pending_key = _filter_company_pending_key(form_key)
     sig_key = f"{form_key}_draft_sig"
-    signature = f"{rule_id}:{initial.get('sirket_kodlari', '')}"
+    initial_companies = initial.get("sirket_kodlari", "")
+    signature = f"{rule_id}:{initial_companies}"
+
+    if pending_key in st.session_state:
+        st.session_state[field_key] = st.session_state.pop(pending_key)
+        # initial imzasiyla hizala; aksi halde asagidaki prefill KAP sonucunu siler
+        st.session_state[sig_key] = signature
+        return
+
     if st.session_state.get(sig_key) != signature:
-        st.session_state[field_key] = initial.get("sirket_kodlari", "")
+        st.session_state[field_key] = initial_companies
         st.session_state[sig_key] = signature
 
 
@@ -482,6 +499,7 @@ def _render_filter_form(
     initial = initial or {}
     _sync_filter_company_draft(form_key, initial, rule_id)
     company_field_key = _filter_company_field_key(form_key)
+    pending_key = _filter_company_pending_key(form_key)
 
     with st.form(form_key):
         kural_adi = st.text_input(
@@ -535,8 +553,9 @@ def _render_filter_form(
         if fetch_kap:
             try:
                 kap_codes = fetch_bist_stock_codes()
-                current = st.session_state.get(company_field_key, "")
-                st.session_state[company_field_key] = _merge_company_codes(current, kap_codes)
+                # Widget key'e ayni run'da yazma; pending + rerun ile sonraki run'da doldur
+                current = sirket_kodlari or initial.get("sirket_kodlari", "")
+                st.session_state[pending_key] = _merge_company_codes(current, kap_codes)
                 st.session_state["filter_kap_info"] = (
                     f"KAP listesinden {len(kap_codes)} sirket kodu listeye eklendi."
                 )
@@ -639,8 +658,12 @@ def page_filters(settings: Settings) -> None:
                 st.caption("Sirketler: Tum sirketler")
 
             col_edit, col_delete = st.columns(2)
+            edit_form_key = f"edit_rule_form_{rule.id}"
             if col_edit.button("Duzenle", key=f"edit_{rule.id}"):
                 st.session_state.edit_rule_id = rule.id
+                # Prefill'in DB'den yeniden yazilmasi icin eski draft imzasini sifirla
+                st.session_state.pop(f"{edit_form_key}_draft_sig", None)
+                st.session_state.pop(_filter_company_pending_key(edit_form_key), None)
                 st.rerun()
             if col_delete.button("Sil", key=f"delete_{rule.id}"):
                 repository.delete_filter_rule(rule.id)
@@ -652,7 +675,7 @@ def page_filters(settings: Settings) -> None:
                 st.divider()
                 st.markdown("**Kurali duzenle**")
                 if _render_filter_form(
-                    form_key=f"edit_rule_form_{rule.id}",
+                    form_key=edit_form_key,
                     settings=settings,
                     submit_label="Guncelle",
                     rule_id=rule.id,
@@ -671,6 +694,8 @@ def page_filters(settings: Settings) -> None:
                     st.rerun()
                 if st.button("Iptal", key=f"cancel_{rule.id}"):
                     st.session_state.edit_rule_id = None
+                    st.session_state.pop(f"{edit_form_key}_draft_sig", None)
+                    st.session_state.pop(_filter_company_pending_key(edit_form_key), None)
                     st.rerun()
 
 
@@ -757,7 +782,7 @@ def page_settings(settings: Settings) -> None:
 
     st.subheader("CDS bildirimi (ayri worker)")
     st.caption(
-        "KAP worker'indan bagimsiz mantik; ayni 5 dk cron job ile calisir. "
+        "KAP worker'indan bagimsiz mantik; ayni 5 dk GitHub Actions worker ile calisir. "
         "Paneldeki saat gelince gonderir, degilse atlar."
     )
 
@@ -840,7 +865,7 @@ def page_settings(settings: Settings) -> None:
 
     st.subheader("Brandirectory Turkiye 125 (ayri worker)")
     st.caption(
-        "KAP ve CDS worker'larindan bagimsiz mantik; ayni 5 dk cron job ile calisir. "
+        "KAP ve CDS worker'larindan bagimsiz mantik; ayni 5 dk GitHub Actions worker ile calisir. "
         "Paneldeki saat gelince gonderir, degilse atlar."
     )
 

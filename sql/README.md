@@ -2,6 +2,10 @@
 
 Tek dosyada tum sema: `001_schema.sql`. Idempotent — tekrar calistirmak guvenlidir.
 
+Worker'lar GitHub Actions ile calisir (`kap_worker.yml` + `kap_worker_trigger.yml`).
+Harici cron servisi kullanilmaz. GitHub 60 gun commit olmayinca schedule'i kapatir;
+bunu `keepalive.yml` ayda 2 commit ile onler.
+
 ## Kurulum
 
 ```powershell
@@ -51,5 +55,8 @@ KAP eslesmelerinde mesaj `src/telegram_bot.py` icinde su sirayla olusturulur: Il
 ## Telegram CDS mesaj sablonu
 
 CDS worker WGB API'sinden veri ceker (`src/cds_fetcher.py`). Telegram mesaji: baslik, Tarih, CDS, 10 yillik tahvil, MB faizi, dort kredi notu, kaynak linkleri. Ayrinti: kok `README.md`.
+
+Ucretsiz Supabase ~7 gun islem yoksa pause olur. 5 dk worker DB'ye yazdigi icin
+proje canli kalir; worker durursa pause riski tekrar baslar.
 
 Masaustu surumu (SQL Server): `C:\Kap Haberleri\sql\`

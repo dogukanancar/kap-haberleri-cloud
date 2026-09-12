@@ -82,7 +82,8 @@ def main() -> int:
         if age > MAX_RUN_AGE:
             problems.append(
                 f"KAP worker {int(age.total_seconds() // 60)} dakikadir calismamis "
-                f"(limit {MAX_RUN_AGE.seconds // 60} dk). cron-job.org kontrol edin."
+                f"(limit {MAX_RUN_AGE.seconds // 60} dk). "
+                "GitHub Actions workflow'lari Enable mi kontrol edin."
             )
 
     gh_time, gh_err = _github_last_run()
