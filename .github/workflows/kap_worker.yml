@@ -39,6 +39,7 @@ jobs:
           python -c "import os,sys; missing=[k for k in ['DATABASE_URL','TELEGRAM_BOT_TOKEN'] if not os.getenv(k)]; print('Eksik:', missing) if missing else print('Secrets OK'); sys.exit(1 if missing else 0)"
 
       - name: KAP kontrolu ve Telegram gonderimi
+        id: kap
         continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -47,6 +48,8 @@ jobs:
         run: python worker_once.py
 
       - name: CDS kontrolu (paneldeki saat gelince gonderir)
+        id: cds
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -54,8 +57,19 @@ jobs:
         run: python cds_worker_once.py
 
       - name: Brand kontrolu (paneldeki saat gelince gonderir)
+        id: brand
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python brand_worker_once.py
+
+      - name: Worker ozeti
+        if: always()
+        run: |
+          echo "KAP=${{ steps.kap.outcome }} CDS=${{ steps.cds.outcome }} Brand=${{ steps.brand.outcome }}"
+          if [ "${{ steps.kap.outcome }}" != "success" ] || [ "${{ steps.cds.outcome }}" != "success" ] || [ "${{ steps.brand.outcome }}" != "success" ]; then
+            echo "En az bir worker basarisiz; hepsi calistirildi."
+            exit 1
+          fi

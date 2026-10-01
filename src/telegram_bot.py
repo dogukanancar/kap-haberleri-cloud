@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import logging
+import time
 
 import requests
 
@@ -32,6 +33,16 @@ def format_disclosure_message(
     )
 
 
+def _telegram_retry_after(response: requests.Response) -> int:
+    wait = 5
+    try:
+        data = response.json()
+        wait = int((data.get("parameters") or {}).get("retry_after") or wait)
+    except (ValueError, TypeError):
+        pass
+    return max(1, min(wait, 45))
+
+
 def send_message(
     token: str,
     chat_id: str,
@@ -40,6 +51,7 @@ def send_message(
     message_thread_id: int | None = None,
     disable_preview: bool = True,
     timeout: int = 20,
+    max_attempts: int = 6,
 ) -> None:
     payload: dict[str, object] = {
         "chat_id": chat_id,
@@ -49,12 +61,32 @@ def send_message(
     }
     if message_thread_id is not None:
         payload["message_thread_id"] = message_thread_id
-    response = requests.post(
-        f"https://api.telegram.org/bot{token}/sendMessage",
-        json=payload,
-        timeout=timeout,
-    )
-    response.raise_for_status()
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    last_error: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.post(url, json=payload, timeout=timeout)
+            if response.status_code == 429:
+                wait = _telegram_retry_after(response)
+                logger.warning(
+                    "Telegram 429, %s sn bekleniyor (deneme %s/%s).",
+                    wait,
+                    attempt,
+                    max_attempts,
+                )
+                time.sleep(wait)
+                last_error = RuntimeError("Telegram 429 Too Many Requests")
+                continue
+            if response.status_code >= 400:
+                raise RuntimeError(f"Telegram HTTP {response.status_code}")
+            return
+        except requests.RequestException as exc:
+            last_error = RuntimeError("Telegram baglanti hatasi")
+            logger.warning("Telegram istek hatasi (deneme %s/%s): %s", attempt, max_attempts, exc)
+            time.sleep(min(2 * attempt, 10))
+
+    raise last_error or RuntimeError("Telegram gonderimi basarisiz")
 
 
 def format_cds_message(snapshot: CdsSnapshot) -> str:

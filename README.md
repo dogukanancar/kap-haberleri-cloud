@@ -114,7 +114,7 @@ Secrets: `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 
 | Workflow | Gorev |
 |----------|-------|
-| `kap_worker.yml` | KAP + CDS + Brand isleri |
+| `kap_worker.yml` | KAP + CDS + Brand isleri (birbirinden bagimsiz; biri patlasa digerleri calisir) |
 | `kap_worker_trigger.yml` | Her 5 dakikada worker'i `workflow_dispatch` ile cagirir |
 | `keepalive.yml` | Her ayin 1 ve 15'inde commit; `disabled_inactivity` onler |
 

@@ -74,7 +74,7 @@ def process_disclosures(disclosures: list[Disclosure]) -> dict[str, int]:
                     f"Bildirim gonderildi: {disclosure.disclosure_index}",
                     detail=disclosure.url,
                 )
-                time.sleep(0.08)
+                time.sleep(1.2)
             except Exception as exc:
                 repository.log_event(
                     "ERROR",
