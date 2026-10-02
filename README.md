@@ -7,16 +7,15 @@ Masaustu surumu (SQL Server): `C:\Kap Haberleri`
 | Bilesen | Gorev |
 |---------|-------|
 | **Panel** (`app.py`) | Filtreler, CDS/Brand saatleri, DB bakim, manuel test |
-| **GitHub Actions** (`kap_worker.yml`) | KAP + CDS + Brand (~5 dk) |
-| **Zamanlayici** (`kap_worker_trigger.yml`) | 5 dk'da bir KAP Worker'i tetikler |
+| **GitHub Actions** (`kap_worker.yml`) | KAP + CDS + Brand (10 dk) |
+| **Zamanlayici** (`kap_worker_trigger.yml`) | Elle tetikleme (yedek) |
 | **Keepalive** (`keepalive.yml`) | Ayda 2 commit; 60 gun inactivity kapanmasini onler |
 | **Supabase PostgreSQL** | Ayarlar, loglar, gonderim kayitlari |
 
 ## Mimari
 
 ```
-kap_worker_trigger.yml (5 dk)
-    -> kap_worker.yml
+kap_worker.yml (10 dk)
         -> worker_once.py
         -> cds_worker_once.py
         -> brand_worker_once.py
@@ -114,12 +113,12 @@ Secrets: `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 
 | Workflow | Gorev |
 |----------|-------|
-| `kap_worker.yml` | KAP + CDS + Brand isleri (birbirinden bagimsiz; biri patlasa digerleri calisir) |
-| `kap_worker_trigger.yml` | Her 5 dakikada worker'i `workflow_dispatch` ile cagirir |
+| `kap_worker.yml` | Her 10 dakikada KAP + CDS + Brand. CDS/Brand hata verse KAP devam eder |
+| `kap_worker_trigger.yml` | Elle yedek tetikleyici |
 | `keepalive.yml` | Her ayin 1 ve 15'inde commit; `disabled_inactivity` onler |
 
-Harici zamanlayici yok. 60 gun commit olmayinca GitHub her iki schedule'i de kapatir;
-keepalive bu sayaci sifirlar.
+Harici zamanlayici yok. GitHub 5 dk cift cron'u saatlere yayıyordu; tek 10 dk cron kullanilir.
+60 gun commit olmayinca schedule kapanir; keepalive bunu onler.
 
 Manuel test:
 

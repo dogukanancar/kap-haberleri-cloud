@@ -1,10 +1,8 @@
-# GitHub schedule bazen ana worker'i tetiklemez; bu hafif workflow
-# her 5 dakikada kap_worker.yml'i workflow_dispatch ile cagirir.
+# Yedek tetikleyici. 5 dk cift cron GitHub'da throttle oluyordu;
+# ana zamanlama kap_worker.yml (10 dk). Bu dosya yalnizca elle calisir.
 name: KAP Worker Zamanlayici
 
 on:
-  schedule:
-    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   workflow_dispatch:
 
 permissions:
