@@ -7,7 +7,8 @@ Masaustu surumu (SQL Server): `C:\Kap Haberleri`
 | Bilesen | Gorev |
 |---------|-------|
 | **Panel** (`app.py`) | Filtreler, CDS/Brand saatleri, DB bakim, manuel test |
-| **GitHub Actions** (`kap_worker.yml`) | KAP + CDS + Brand (10 dk) |
+| **Yerel zamanlama** | Windows gorevi, 10 dakikada bir worker |
+| **GitHub Actions** (`kap_worker.yml`) | Yedek (GitHub 10 dk cron'u gecikebilir) |
 | **Zamanlayici** (`kap_worker_trigger.yml`) | Elle tetikleme (yedek) |
 | **Keepalive** (`keepalive.yml`) | Ayda 2 commit; 60 gun inactivity kapanmasini onler |
 | **Supabase PostgreSQL** | Ayarlar, loglar, gonderim kayitlari |
@@ -15,12 +16,14 @@ Masaustu surumu (SQL Server): `C:\Kap Haberleri`
 ## Mimari
 
 ```
-kap_worker.yml (10 dk)
-        -> worker_once.py
-        -> cds_worker_once.py
-        -> brand_worker_once.py
+Windows gorevi (10 dk) -> run_cloud_workers.bat
+    -> worker_once.py
+    -> cds_worker_once.py
+    -> brand_worker_once.py
 
-keepalive.yml (1 ve 15 her ay) -> commit -> schedule acik kalir
+kap_worker.yml = GitHub yedek (cron gecikebilir)
+
+keepalive.yml (1 ve 15 her ay) -> commit -> GitHub schedule acik kalir
 
 Panel (Streamlit) -> Supabase PostgreSQL
 ```

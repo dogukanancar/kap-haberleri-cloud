@@ -1061,7 +1061,7 @@ def main() -> None:
     st.title("KAP Haberleri Cloud")
     st.caption("Yerel panel + GitHub Actions + Supabase PostgreSQL")
 
-    st.sidebar.info("Worker: GitHub Actions (5 dk)\nCDS + Brand: paneldeki saat/plana gore")
+    st.sidebar.info("Worker: bu PC (10 dk) + GitHub yedek\nCDS + Brand: paneldeki saat/plana gore")
 
     page = st.sidebar.radio(
         "Menu",
