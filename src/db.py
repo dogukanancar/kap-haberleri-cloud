@@ -13,6 +13,18 @@ _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
 
 
+def _sqlalchemy_url(raw: str) -> str:
+    url = (raw or "").strip()
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    if url.startswith("postgresql://") and "+psycopg" not in url.split("://", 1)[0]:
+        url = "postgresql+psycopg2://" + url[len("postgresql://") :]
+    return url
+
+_engine: Engine | None = None
+_SessionLocal: sessionmaker[Session] | None = None
+
+
 def reset_engine() -> None:
     global _engine, _SessionLocal
     if _engine is not None:
@@ -26,7 +38,7 @@ def get_engine() -> Engine:
     if _engine is None:
         settings = get_settings()
         _engine = create_engine(
-            settings.database_url,
+            _sqlalchemy_url(settings.database_url),
             pool_pre_ping=True,
             future=True,
         )
