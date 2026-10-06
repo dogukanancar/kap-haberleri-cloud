@@ -1,9 +1,9 @@
 name: KAP Worker
 
 on:
+  # GitHub public cron `*/10` calistirmaz (~4 saat). Saatlik kick + ic dongu 10 dk.
   schedule:
-    # Tek cron. 5 dk cift schedule GitHub tarafindan saatlere yayiliyordu.
-    - cron: "*/10 * * * *"
+    - cron: "7 * * * *"
   workflow_dispatch:
   repository_dispatch:
     types: [kap-worker]
@@ -13,12 +13,12 @@ permissions:
 
 concurrency:
   group: kap-worker
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   worker:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 360
 
     steps:
       - name: Checkout
@@ -39,26 +39,9 @@ jobs:
         run: |
           python -c "import os,sys; missing=[k for k in ['DATABASE_URL','TELEGRAM_BOT_TOKEN'] if not os.getenv(k)]; print('Eksik:', missing) if missing else print('Secrets OK'); sys.exit(1 if missing else 0)"
 
-      - name: KAP kontrolu ve Telegram gonderimi
-        continue-on-error: true
+      - name: 10 dk worker dongusu
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python worker_once.py
-
-      - name: CDS kontrolu (paneldeki saat gelince gonderir)
-        continue-on-error: true
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python cds_worker_once.py
-
-      - name: Brand kontrolu (paneldeki saat gelince gonderir)
-        continue-on-error: true
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python brand_worker_once.py
+        run: python scripts/run_worker_loop.py

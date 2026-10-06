@@ -7,7 +7,7 @@ Masaustu surumu (SQL Server): `C:\Kap Haberleri`
 | Bilesen | Gorev |
 |---------|-------|
 | **Panel** (`app.py`) | Filtreler, CDS/Brand saatleri, DB bakim, manuel test |
-| **GitHub Actions** (`kap_worker.yml`) | KAP + CDS + Brand (10 dk) |
+| **GitHub Actions** (`kap_worker.yml`) | Job ayakta kalir, iceride her 10 dk KAP+CDS+Brand |
 | **Zamanlayici** (`kap_worker_trigger.yml`) | Elle tetikleme (yedek) |
 | **Keepalive** (`keepalive.yml`) | Ayda 2 commit; 60 gun inactivity kapanmasini onler |
 | **Supabase PostgreSQL** | Ayarlar, loglar, gonderim kayitlari |
@@ -15,7 +15,7 @@ Masaustu surumu (SQL Server): `C:\Kap Haberleri`
 ## Mimari
 
 ```
-kap_worker.yml (10 dk)
+kap_worker.yml (saatlik kick; icerde 10 dk dongu)
     -> worker_once.py
     -> cds_worker_once.py
     -> brand_worker_once.py
@@ -113,11 +113,12 @@ Secrets: `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 
 | Workflow | Gorev |
 |----------|-------|
-| `kap_worker.yml` | Her 10 dakikada KAP + CDS + Brand. CDS/Brand hata verse KAP devam eder |
+| `kap_worker.yml` | GitHub cron gecikir; job icinde 10 dk dongu KAP+CDS+Brand calistirir |
 | `kap_worker_trigger.yml` | Elle yedek tetikleyici |
 | `keepalive.yml` | Her ayin 1 ve 15'inde commit; `disabled_inactivity` onler |
 
-Harici zamanlayici yok. GitHub 5 dk cift cron'u saatlere yayıyordu; tek 10 dk cron kullanilir.
+Harici zamanlayici yok. GitHub `*/10` cron'u public repo'da ~4 saate yayar;
+worker job'u ayakta kalip iceride 10 dakikada bir tur atar.
 60 gun commit olmayinca schedule kapanir; keepalive bunu onler.
 
 Manuel test:
